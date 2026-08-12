@@ -37,8 +37,8 @@ body{margin:0;font-family:system-ui,'Segoe UI',Roboto,sans-serif;background:var(
 input,select,textarea{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px 10px;font-size:14px;font-family:inherit}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
 input:disabled{cursor:not-allowed}
-#search{min-width:200px;flex:0 1 300px}
-.sortwrap label{color:var(--muted);display:flex;gap:6px;align-items:center}
+#search{min-width:190px;flex:0 1 300px}
+.sortwrap label{color:var(--muted);display:flex;gap:6px;align-items:center;font-size:13px}
 .btn{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px 12px;cursor:pointer;font-size:13px}
 .btn:hover{border-color:var(--accent)}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
@@ -46,13 +46,20 @@ input:disabled{cursor:not-allowed}
 main{flex:1;min-height:0;overflow:auto;padding:6px 22px 24px}
 .tablewrap{border:1px solid var(--line);border-radius:10px}
 table{width:100%;border-collapse:collapse;min-width:1040px}
+table.grouped{min-width:1160px}
 th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
 th{position:sticky;top:0;background:var(--panel);color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.03em;z-index:2}
 tbody tr:hover{background:var(--panel)}
 td.center,th.center{text-align:center}
 td.title{font-weight:600;max-width:280px}
-td.comments{color:var(--muted);max-width:280px}
+td.comments{color:var(--muted);max-width:260px}
 td.plat{white-space:nowrap}
+td.grpcell{background:var(--panel);vertical-align:middle;font-size:12px;font-weight:700;color:var(--muted);max-width:150px}
+td.grpcell.g{color:var(--accent);border-left:3px solid var(--accent)}
+.gdel{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 4px;border-radius:4px;line-height:1}
+.gdel:hover{color:var(--red)}
+tr[draggable="true"]{cursor:grab}
+tr.dto td{box-shadow:inset 0 2px 0 var(--accent)}
 .badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;background:#33415533;color:#cdd6e6;margin:1px 2px 1px 0}
 .p-pc{background:#d4d8e0;color:#1b2230}
 .p-xbox{background:#14532d55;color:#86efac}
@@ -80,7 +87,7 @@ h3{color:var(--muted);font-weight:600;margin:18px 0 8px}
 footer{flex-shrink:0;color:var(--muted);font-size:12px;padding:12px 22px;border-top:1px solid var(--line)}
 .modal{position:fixed;inset:0;background:rgba(4,7,14,.62);display:none;align-items:center;justify-content:center;padding:20px;z-index:50}
 .modal.show{display:flex}
-.dialog{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;width:100%;max-width:560px}
+.dialog{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;width:100%;max-width:560px;max-height:90vh;overflow:auto}
 .dialog h2{margin:0 0 16px;font-size:18px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .grid label{display:flex;flex-direction:column;gap:5px;color:var(--muted);font-size:12px}
@@ -92,7 +99,12 @@ footer{flex-shrink:0;color:var(--muted);font-size:12px;padding:12px 22px;border-
 .pchip.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
 .pchip.add{border-style:dashed}
 input.err{border-color:var(--red)}
-.dlg-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
+.dlg-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;align-items:center}
+.glist{max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:8px;margin-top:8px}
+.grow{display:flex;align-items:center;gap:9px;padding:7px 11px;border-bottom:1px solid var(--line);cursor:pointer;font-size:13px}
+.grow:last-child{border-bottom:none}
+.grow:hover{background:var(--panel2)}
+.grow .gg{margin-left:auto;color:var(--muted);font-size:11px}
 @media(max-width:700px){
   .layout{flex-direction:column;height:100vh}
   .sidebar{width:auto;border-right:none;border-bottom:1px solid var(--line);overflow:visible}
@@ -131,6 +143,7 @@ input.err{border-color:var(--red)}
       <select id="platform"></select>
       <span class="sortwrap"><label>Sort
         <select id="sort">
+          <option value="group">Group (default)</option>
           <option value="title">Title A&#8211;Z</option>
           <option value="want">Want to Play (high to low)</option>
           <option value="final">Final Rating (high to low)</option>
@@ -138,12 +151,13 @@ input.err{border-color:var(--red)}
         </select></label></span>
       <div class="spacer"></div>
       <button id="addBtn" class="btn primary">+ Add game</button>
+      <button id="createGroupBtn" class="btn">+ Create group</button>
       <button id="exportJson" class="btn">Export JSON</button>
       <button id="exportCsv" class="btn">Export CSV</button>
       <button id="importBtn" class="btn">Import</button>
     </div>
     <main id="main"></main>
-    <footer>Tip: click the &#8211; under <b>Finished</b> or <b>Started/Played</b> to toggle it. Auto-saves in this browser &#8212; use <b>Export JSON</b> for a backup.</footer>
+    <footer>Tip: <b>Sort &#8250; Group</b> brackets your groups &#8212; drag rows within a group to reorder, or click &#215; on a group to delete it. Auto-saves here; <b>Export JSON</b> to back up.</footer>
   </div>
 </div>
 
@@ -153,7 +167,8 @@ input.err{border-color:var(--red)}
     <div class="grid">
       <label class="full">Game<input id="mGame" type="text" autocomplete="off"></label>
       <label class="full">Platform(s) <span class="hint">click to select</span><div id="mPlats" class="chips"></div></label>
-      <label class="full">Multiplayer only? <span class="hint">crosses out Finished &amp; Started/Played</span><div style="margin-top:5px"><button type="button" id="mMpBtn" class="pchip">Multiplayer only</button></div></label>
+      <label>Group <span class="hint">optional</span><select id="mGroup"></select></label>
+      <label>&nbsp;<button type="button" id="mMpBtn" class="pchip" style="margin-top:0">Multiplayer only</button></label>
       <label>Finished?<input id="mFin" type="text" list="ynList" autocomplete="off"></label>
       <label>Started / Played?<input id="mStarted" type="text" list="ynList" autocomplete="off"></label>
       <label>Want to Play (1&#8211;10)<input id="mWantR" type="number" min="0" max="10" step="0.5"></label>
@@ -169,6 +184,24 @@ input.err{border-color:var(--red)}
     </div>
   </div>
 </div>
+
+<div id="groupModal" class="modal">
+  <div class="dialog">
+    <h2>Create / edit a group</h2>
+    <div class="grid">
+      <label class="full">Group name<input id="gName" type="text" autocomplete="off" placeholder="e.g. Halo"></label>
+      <label class="full">Add games <span class="hint">search and tick the games that belong in this group</span><input id="gSearch" type="search" placeholder="Search your games&#8230;"></label>
+    </div>
+    <div id="gList" class="glist"></div>
+    <div class="dlg-actions">
+      <button id="gAuto" class="btn" title="Auto-create franchise groups from titles">Auto-detect franchises</button>
+      <div class="spacer"></div>
+      <button id="gCancel" class="btn">Cancel</button>
+      <button id="gSave" class="btn primary">Save group</button>
+    </div>
+  </div>
+</div>
+
 <datalist id="ynList"><option value="Yes"></option><option value="No"></option><option value="N/A"></option></datalist>
 <input id="importFile" type="file" accept="application/json,.json" hidden>
 
@@ -180,6 +213,21 @@ const PRANK = {PC:0,Xbox:1,PlayStation:2,Nintendo:3};
 const PLAT_CLASS = {PC:'p-pc',Xbox:'p-xbox',PlayStation:'p-ps',Nintendo:'p-nin'};
 const TITLE_ALIASES = {'final fantasy x (10)':'Final Fantasy X'};
 const VIEW_TITLES = {all:'All Games',backlog:'Backlog','bl-nf':'Not Finished','bl-fin':'Finished','bl-want':'Want to 100%',stats:'Stats'};
+const GROUP_RULES = [
+  [/lord of the rings/i,'The Lord of the Rings'],[/kingdom under fire/i,'Kingdom Under Fire'],[/kingdom hearts/i,'Kingdom Hearts'],
+  [/assassin.?s creed|assissin/i,"Assassin's Creed"],[/tomb raider/i,'Tomb Raider'],[/final fantasy/i,'Final Fantasy'],
+  [/dragon ball/i,'Dragon Ball'],[/middle earth|shadow of mordor|shadow of war/i,'Middle-earth'],[/halo/i,'Halo'],
+  [/gears/i,'Gears of War'],[/crash/i,'Crash Bandicoot'],[/uncharted/i,'Uncharted'],[/spyro/i,'Spyro'],
+  [/starcraft/i,'StarCraft'],[/warcraft/i,'Warcraft'],[/kombat/i,'Mortal Kombat'],[/plague tale/i,'A Plague Tale'],
+  [/last of us/i,'The Last of Us'],[/god of war/i,'God of War'],[/horizon zero dawn/i,'Horizon'],[/spider-?man/i,'Spider-Man'],
+  [/star wars/i,'Star Wars'],[/pokemon/i,'Pokemon'],[/zelda/i,'The Legend of Zelda'],[/smash bros/i,'Super Smash Bros.'],
+  [/^doom/i,'DOOM'],[/^portal/i,'Portal'],[/bioshock/i,'BioShock'],[/batman|arkham/i,'Batman: Arkham'],[/borderlands/i,'Borderlands'],
+  [/f\.e\.a\.r/i,'F.E.A.R.'],[/titanfall/i,'Titanfall'],[/dead space/i,'Dead Space'],[/^fable/i,'Fable'],[/^sly/i,'Sly Cooper'],
+  [/^jak/i,'Jak and Daxter'],[/morrowind|oblivion|skyrim|elder scrolls/i,'The Elder Scrolls'],[/mega ?man/i,'Mega Man'],
+  [/one piece/i,'One Piece'],[/dynasty warriors/i,'Dynasty Warriors'],[/need for speed/i,'Need for Speed'],
+  [/overcooked/i,'Overcooked'],[/aragami/i,'Aragami'],[/^ori/i,'Ori'],[/digimon/i,'Digimon']
+];
+function detectGroup(title){ const t=title||''; for(var i=0;i<GROUP_RULES.length;i++){ if(GROUP_RULES[i][0].test(t)) return GROUP_RULES[i][1]; } return ''; }
 
 function uid(){ try{ if(window.crypto&&crypto.randomUUID) return crypto.randomUUID(); }catch(e){} return 'id-'+Date.now()+'-'+Math.floor(Math.random()*1e9); }
 function yes(v){ return /^\s*yes/i.test(v||''); }
@@ -202,7 +250,7 @@ function mergeDupes(arr){
     const wants=grp.map(wantNum).filter(x=>x!=null), finals=grp.map(finalNum).filter(x=>x!=null);
     const comments=[]; grp.forEach(g=>{ const c=(g.comments||'').trim(); if(c && comments.indexOf(c)<0) comments.push(c); });
     const fin=anyYes('finished')?'Yes':firstNon('finished');
-    out.push({ id:grp[0].id||uid(), title:grp[0].title, platforms:rankPlats(plats), mp:grp.some(g=>g.mp===true), finished:fin,
+    out.push({ id:grp[0].id||uid(), title:grp[0].title, platforms:rankPlats(plats), group:firstNon('group'), ord:(grp[0].ord||0), mp:grp.some(g=>g.mp===true), finished:fin,
       started:(yes(fin)||anyYes('started'))?'Yes':'', want100:anyYes('want100')?'Yes':firstNon('want100'),
       done100:anyYes('done100')?'Yes':firstNon('done100'), replayable:anyYes('replayable')?'Yes':firstNon('replayable'),
       want:wants.length?Math.max.apply(null,wants):null, final:finals.length?Math.max.apply(null,finals):null, comments:comments.join(' / ') });
@@ -214,11 +262,12 @@ function prep(arr){
     if(!g.id) g.id=uid();
     const al=TITLE_ALIASES[(g.title||'').trim().toLowerCase()]; if(al) g.title=al;
     if(!Array.isArray(g.platforms)) g.platforms = (g.platform!=null&&g.platform!=='')?[g.platform]:[];
-    delete g.platform;
+    delete g.platform; delete g.series;
+    if(g.group===undefined||g.group===null) g.group='';
+    if(typeof g.ord!=='number') g.ord=0;
     g.mp = (g.mp===true);
     if(g.mp){ g.finished=''; g.started=''; }
     else if(g.started===undefined||g.started===null) g.started=yes(g.finished)?'Yes':'';
-    // migrate legacy single `rating` -> want (anticipation) / final (verdict), split by whether played
     if(g.want===undefined && g.final===undefined && g.rating!==undefined){
       const rt=num(g.rating);
       if(yes(g.started)){ g.final=rt; g.want=null; } else { g.want=rt; g.final=null; }
@@ -226,7 +275,6 @@ function prep(arr){
     if(g.want===undefined) g.want=null;
     if(g.final===undefined) g.final=null;
     delete g.rating;
-    // gating: a Final Rating implies the game was played; multiplayer-only games carry no Final Rating
     if(g.mp) g.final=null;
     else if(g.final!=null && !yes(g.started) && !yes(g.finished)) g.started='Yes';
   });
@@ -241,10 +289,11 @@ function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(games)); }catc
 
 let games = load();
 let view = 'all';
-let filters = { search:'', platform:'all', sort:'title' };
+let filters = { search:'', platform:'all', sort:'group' };
 let editingId = null;
 let modalPlats = [];
 let modalMp = false;
+let gChecked = new Set();
 
 function isFinished(g){ return yes(g.finished); }
 function isStarted(g){ return yes(g.started); }
@@ -253,14 +302,16 @@ function wants100(g){ return yes(g.want100); }
 function done100(g){ return yes(g.done100); }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function setText(id,v){ const e=document.getElementById(id); if(e) e.textContent=v; }
+function allGroups(){ return Array.from(new Set(games.map(g=>(g.group||'').trim()).filter(Boolean))).sort(); }
 
 function visibleGames(){
   let list = games.slice();
   const q = filters.search.trim().toLowerCase();
-  if(q) list = list.filter(g => (g.title||'').toLowerCase().includes(q) || (g.comments||'').toLowerCase().includes(q));
+  if(q) list = list.filter(g => (g.title||'').toLowerCase().includes(q) || (g.comments||'').toLowerCase().includes(q) || (g.group||'').toLowerCase().includes(q));
   if(filters.platform!=='all') list = list.filter(g => platsOf(g).indexOf(filters.platform)>=0);
   const s = filters.sort;
   list.sort((a,b)=>{
+    if(s==='group'){ const ga=(a.group||'').trim(), gb=(b.group||'').trim(); const ka=ga||a.title, kb=gb||b.title; const c=ka.localeCompare(kb); if(c) return c; if(ga&&ga===gb) return (a.ord||0)-(b.ord||0) || (a.title||'').localeCompare(b.title||''); return (a.title||'').localeCompare(b.title||''); }
     if(s==='want'){ const ra=wantNum(a), rb=wantNum(b); return (rb==null?-1:rb)-(ra==null?-1:ra) || (a.title||'').localeCompare(b.title||''); }
     if(s==='final'){ const ra=finalNum(a), rb=finalNum(b); return (rb==null?-1:rb)-(ra==null?-1:ra) || (a.title||'').localeCompare(b.title||''); }
     if(s==='platform'){ return (platsOf(a)[0]||'').localeCompare(platsOf(b)[0]||'') || (a.title||'').localeCompare(b.title||''); }
@@ -276,9 +327,8 @@ function toggleCell(g,field){
   return '<button class="chk'+(on?' on':'')+'" data-act="tog" data-field="'+field+'" data-id="'+g.id+'" title="'+tip+'">'+(on?'&#10003;':'&#8211;')+'</button>';
 }
 function statusCell(g,field){ if(isMp(g)) return '<span class="mp-no" title="Multiplayer only — N/A">&#8856;</span>'; return toggleCell(g,field); }
-function gameRow(g){
-  return '<tr data-id="'+g.id+'">'
-    +'<td class="title">'+esc(g.title)+(isMp(g)?' <span class="mp-tag">MP</span>':'')+'</td>'
+function gameCells(g){
+  return '<td class="title">'+esc(g.title)+(isMp(g)?' <span class="mp-tag">MP</span>':'')+'</td>'
     +'<td class="plat">'+badges(g)+'</td>'
     +'<td class="center">'+statusCell(g,'finished')+'</td>'
     +'<td class="center">'+statusCell(g,'started')+'</td>'
@@ -289,16 +339,29 @@ function gameRow(g){
     +'<td class="center">'+rateCell(finalNum(g))+'</td>'
     +'<td class="comments">'+esc(g.comments||'')+'</td>'
     +'<td class="actions"><button class="icon" data-act="edit" data-id="'+g.id+'" title="Edit">&#9998;</button>'
-    +'<button class="icon danger" data-act="del" data-id="'+g.id+'" title="Delete">&#128465;</button></td>'
-    +'</tr>';
+    +'<button class="icon danger" data-act="del" data-id="'+g.id+'" title="Delete">&#128465;</button></td>';
 }
+const HEAD_MAIN = '<th>Game</th><th>Platform</th><th class="center">Finished</th><th class="center">Started/Played</th><th class="center">Want 100%</th><th class="center">100%?</th><th class="center">Replay</th><th class="center">Want to Play</th><th class="center">Final Rating</th><th>Comments</th><th></th>';
 function tableHtml(list){
   if(!list.length) return '<div class="empty">Nothing here yet. Click <b>+ Add game</b> to start.</div>';
-  return '<div class="tablewrap"><table><thead><tr>'
-    +'<th>Game</th><th>Platform</th><th class="center">Finished</th><th class="center">Started/Played</th><th class="center">Want 100%</th><th class="center">100%?</th><th class="center">Replay</th><th class="center">Want to Play</th><th class="center">Final Rating</th><th>Comments</th><th></th>'
-    +'</tr></thead><tbody>'+list.map(gameRow).join('')+'</tbody></table></div>';
+  return '<div class="tablewrap"><table><thead><tr>'+HEAD_MAIN+'</tr></thead><tbody>'
+    +list.map(g=>'<tr data-id="'+g.id+'">'+gameCells(g)+'</tr>').join('')+'</tbody></table></div>';
 }
-function grp(label,arr){ return '<div class="grp-head">'+label+' <span class="count">'+arr.length+'</span></div>'+tableHtml(arr); }
+function groupTableHtml(list){
+  if(!list.length) return '<div class="empty">Nothing here yet. Click <b>+ Add game</b> to start.</div>';
+  let body='', i=0;
+  while(i<list.length){
+    const grp=(list[i].group||'').trim();
+    if(grp){
+      let j=i; while(j<list.length && (list[j].group||'').trim()===grp) j++;
+      for(let k=i;k<j;k++){ const lead=(k===i)?'<td class="grpcell g" rowspan="'+(j-i)+'">'+esc(grp)+' <button class="gdel" data-delgrp="'+esc(grp)+'" title="Delete group">&#215;</button></td>':''; body+='<tr draggable="true" data-grp="'+esc(grp)+'" data-id="'+list[k].id+'">'+lead+gameCells(list[k])+'</tr>'; }
+      i=j;
+    } else { body+='<tr data-id="'+list[i].id+'"><td class="grpcell"></td>'+gameCells(list[i])+'</tr>'; i++; }
+  }
+  return '<div class="tablewrap"><table class="grouped"><thead><tr><th>Group</th>'+HEAD_MAIN+'</tr></thead><tbody>'+body+'</tbody></table></div>';
+}
+function renderTable(list){ return (filters.sort==='group' && games.some(g=>(g.group||'').trim())) ? groupTableHtml(list) : tableHtml(list); }
+function grp(label,arr){ return '<div class="grp-head">'+label+' <span class="count">'+arr.length+'</span></div>'+renderTable(arr); }
 function statCard(label,val){ return '<div class="card"><div class="cval">'+val+'</div><div class="clab">'+label+'</div></div>'; }
 function avgOf(arr,key){ const r=arr.map(g=>num(g[key])).filter(x=>x!=null); return r.length? (r.reduce((s,x)=>s+x,0)/r.length): null; }
 function statsHtml(){
@@ -306,12 +369,13 @@ function statsHtml(){
   const mp=games.filter(isMp).length;
   const notfin=games.filter(g=>!isFinished(g)&&!isMp(g)).length;
   const playing=games.filter(g=>isStarted(g)&&!isFinished(g)&&!isMp(g)).length;
+  const groupCount=allGroups().length;
   const avgW=avgOf(games,'want'), avgF=avgOf(games,'final');
   const extra=Array.from(new Set([].concat.apply([],games.map(platsOf)).filter(p=>p&&PLATFORMS.indexOf(p)<0)));
   let rows='';
   PLATFORMS.concat(extra).forEach(p=>{ const gs=games.filter(g=>platsOf(g).indexOf(p)>=0); if(!gs.length) return; const a=avgOf(gs,'final');
     rows+='<tr><td><span class="badge '+(PLAT_CLASS[p]||'')+'">'+esc(p)+'</span></td><td class="center">'+gs.length+'</td><td class="center">'+gs.filter(isFinished).length+'</td><td class="center">'+gs.filter(done100).length+'</td><td class="center">'+(a!=null?a.toFixed(1):'&#8211;')+'</td></tr>'; });
-  return '<div class="cards">'+statCard('Total games',total)+statCard('Finished',fin)+statCard('Playing now',playing)+statCard('Not finished',notfin)+statCard('Multiplayer',mp)+statCard('100% complete',done)+statCard('Want to 100%',want)+statCard('Avg want-to-play',avgW!=null?avgW.toFixed(1):'&#8211;')+statCard('Avg final rating',avgF!=null?avgF.toFixed(1):'&#8211;')+'</div>'
+  return '<div class="cards">'+statCard('Total games',total)+statCard('Finished',fin)+statCard('Playing now',playing)+statCard('Not finished',notfin)+statCard('Multiplayer',mp)+statCard('Groups',groupCount)+statCard('100% complete',done)+statCard('Want to 100%',want)+statCard('Avg want-to-play',avgW!=null?avgW.toFixed(1):'&#8211;')+statCard('Avg final rating',avgF!=null?avgF.toFixed(1):'&#8211;')+'</div>'
     +'<h3>By platform</h3><div class="tablewrap"><table><thead><tr><th>Platform</th><th class="center">Games</th><th class="center">Finished</th><th class="center">100%</th><th class="center">Avg final</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 function render(){
@@ -326,11 +390,11 @@ function render(){
   document.getElementById('toolbar').style.display=(view==='stats')?'none':'flex';
   const main=document.getElementById('main');
   if(view==='stats'){ main.innerHTML=statsHtml(); }
-  else if(view==='all'){ main.innerHTML=tableHtml(base); }
+  else if(view==='all'){ main.innerHTML=renderTable(base); }
   else if(view==='backlog'){ main.innerHTML=grp('NOT FINISHED',nf)+grp('FINISHED',fin)+grp('WANT TO 100% &#8212; go back &amp; 100%',want); }
-  else if(view==='bl-nf'){ main.innerHTML=tableHtml(nf); }
-  else if(view==='bl-fin'){ main.innerHTML=tableHtml(fin); }
-  else if(view==='bl-want'){ main.innerHTML=tableHtml(want); }
+  else if(view==='bl-nf'){ main.innerHTML=renderTable(nf); }
+  else if(view==='bl-fin'){ main.innerHTML=renderTable(fin); }
+  else if(view==='bl-want'){ main.innerHTML=renderTable(want); }
 }
 function buildPlatformOptions(){
   const all = Array.from(new Set(PLATFORMS.concat([].concat.apply([],games.map(platsOf)).filter(Boolean))));
@@ -343,6 +407,11 @@ function renderPlatChips(){
   const wrap=document.getElementById('mPlats'); if(!wrap) return;
   wrap.innerHTML = platChoices().map(p=>'<button type="button" class="pchip'+(modalPlats.indexOf(p)>=0?' on':'')+'" data-plat="'+esc(p)+'">'+esc(p)+'</button>').join('')+'<button type="button" class="pchip add" id="addPlatChip">+ New</button>';
 }
+function fillGroupSelect(current){
+  const sel=f('mGroup'); const gs=allGroups(); if(current && gs.indexOf(current)<0){ gs.push(current); gs.sort(); }
+  sel.innerHTML='<option value="">(none)</option>'+gs.map(g=>'<option value="'+esc(g)+'">'+esc(g)+'</option>').join('')+'<option value="__new__">+ New group…</option>';
+  sel.value=current||'';
+}
 function updateFinalState(){
   const ok = (yes(f('mStarted').value) || yes(f('mFin').value)) && !modalMp;
   const el=f('mFinal'); if(el){ el.disabled=!ok; el.style.opacity=ok?'1':'0.45'; if(!ok) el.value=''; }
@@ -354,10 +423,11 @@ function updateMpUI(){
 }
 function openModal(id){
   editingId=id;
-  const g = id? games.find(x=>x.id===id) : {title:'',platforms:(filters.platform!=='all'?[filters.platform]:['PC']),mp:false,finished:'',started:'',want100:'',done100:'',replayable:'',want:null,final:null,comments:''};
+  const g = id? games.find(x=>x.id===id) : {title:'',platforms:(filters.platform!=='all'?[filters.platform]:['PC']),group:'',mp:false,finished:'',started:'',want100:'',done100:'',replayable:'',want:null,final:null,comments:''};
   f('mTitleHdr').textContent = id?'Edit game':'Add game';
   f('mGame').value=g.title||''; f('mGame').classList.remove('err');
   modalPlats=platsOf(g).slice(); renderPlatChips();
+  fillGroupSelect(g.group||'');
   modalMp = g.mp===true;
   f('mFin').value=g.finished||''; f('mStarted').value=g.started||'';
   f('mWant').value=g.want100||''; f('mDone').value=g.done100||''; f('mReplay').value=g.replayable||'';
@@ -374,10 +444,11 @@ function saveModal(){
   const want=num(f('mWantR').value);
   const startedYes = (yes(f('mStarted').value) || yes(f('mFin').value)) && !modalMp;
   const final = startedYes ? num(f('mFinal').value) : null;
-  const data={ title, platforms:rankPlats(platforms), mp:modalMp, finished:f('mFin').value.trim(), started:f('mStarted').value.trim(), want100:f('mWant').value.trim(), done100:f('mDone').value.trim(), replayable:f('mReplay').value.trim(), want, final, comments:f('mComments').value.trim() };
+  let group=f('mGroup').value; if(group==='__new__') group='';
+  const data={ title, platforms:rankPlats(platforms), group, mp:modalMp, finished:f('mFin').value.trim(), started:f('mStarted').value.trim(), want100:f('mWant').value.trim(), done100:f('mDone').value.trim(), replayable:f('mReplay').value.trim(), want, final, comments:f('mComments').value.trim() };
   if(modalMp){ data.finished=''; data.started=''; data.final=null; }
   else if(yes(data.finished) && !data.started) data.started='Yes';
-  if(editingId){ const t=games.find(x=>x.id===editingId); delete t.platform; delete t.rating; Object.assign(t, data); }
+  if(editingId){ const t=games.find(x=>x.id===editingId); delete t.platform; delete t.rating; delete t.series; Object.assign(t, data); }
   else { data.id=uid(); games.push(data); }
   save(); closeModal(); buildPlatformOptions(); render();
 }
@@ -389,23 +460,48 @@ function toggleField(id,field){
   save(); render();
 }
 
+/* ---- Create / edit group ---- */
+function openGroupModal(){ gChecked=new Set(); f('gName').value=''; f('gName').classList.remove('err'); f('gSearch').value=''; renderGList(); document.getElementById('groupModal').classList.add('show'); f('gName').focus(); }
+function closeGroupModal(){ document.getElementById('groupModal').classList.remove('show'); }
+function renderGList(){
+  const q=f('gSearch').value.trim().toLowerCase();
+  let list=games.slice().sort((a,b)=>(a.title||'').localeCompare(b.title||''));
+  if(q) list=list.filter(g=>(g.title||'').toLowerCase().includes(q));
+  f('gList').innerHTML = list.length? list.map(g=>'<label class="grow"><input type="checkbox" data-gid="'+g.id+'"'+(gChecked.has(g.id)?' checked':'')+'> '+esc(g.title)+(g.group?' <span class="gg">'+esc(g.group)+'</span>':'')+'</label>').join('') : '<div class="empty">No matches.</div>';
+}
+function saveGroup(){
+  const name=f('gName').value.trim();
+  if(!name){ f('gName').classList.add('err'); f('gName').focus(); return; }
+  if(!gChecked.size){ alert('Tick at least one game to put in this group.'); return; }
+  games.forEach(g=>{ if(gChecked.has(g.id)) g.group=name; });
+  save(); closeGroupModal(); if(filters.sort!=='group'){ filters.sort='group'; f('sort').value='group'; } render();
+}
+function autoGroup(){ let n=0; games.forEach(g=>{ if(!(g.group||'').trim()){ const d=detectGroup(g.title); if(d){ g.group=d; n++; } } }); return n; }
+
 function download(name,text,type){ const b=new Blob([text],{type:type||'application/octet-stream'}); const u=URL.createObjectURL(b); const a=document.createElement('a'); a.href=u; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u),1000); }
-function stripId(g){ const o={}; for(const k in g){ if(k!=='id'&&k!=='platform'&&k!=='rating') o[k]=g[k]; } return o; }
+function stripId(g){ const o={}; for(const k in g){ if(k!=='id'&&k!=='platform'&&k!=='rating'&&k!=='series') o[k]=g[k]; } return o; }
 function exportJSON(){ download('games-library-backup.json', JSON.stringify(games.map(stripId),null,2), 'application/json'); }
 function csvCell(v){ v=(v==null?'':String(v)); return /[",\n]/.test(v)? '"'+v.replace(/"/g,'""')+'"' : v; }
 function exportCSV(){
-  const head=['Game','Platform(s)','Multiplayer only?','Finished?','Started/Played?','Want to 100%?','100% Complete?','Replayable?','Want to Play (1-10)','Final Rating (1-10)','Comments'];
+  const head=['Game','Group','Platform(s)','Multiplayer only?','Finished?','Started/Played?','Want to 100%?','100% Complete?','Replayable?','Want to Play (1-10)','Final Rating (1-10)','Comments'];
   const lines=[head.map(csvCell).join(',')];
-  games.forEach(g=>{ lines.push([g.title, platsOf(g).join('; '), (g.mp?'Yes':''), g.finished, g.started, g.want100, g.done100, g.replayable, g.want, g.final, g.comments].map(csvCell).join(',')); });
+  games.forEach(g=>{ lines.push([g.title, g.group, platsOf(g).join('; '), (g.mp?'Yes':''), g.finished, g.started, g.want100, g.done100, g.replayable, g.want, g.final, g.comments].map(csvCell).join(',')); });
   download('games.csv', lines.join('\r\n'), 'text/csv');
 }
 function importJSON(e){
   const file=e.target.files[0]; if(!file) return;
   const reader=new FileReader();
-  reader.onload=()=>{ try{ const a=JSON.parse(reader.result); if(!Array.isArray(a)) throw new Error('File is not a games list'); if(confirm('Import '+a.length+' games? This replaces your current '+games.length+'.')){ games=prep(a.map(x=>Object.assign({title:'',platforms:[],mp:false,finished:'',started:'',want100:'',done100:'',replayable:'',want:null,final:null,comments:''},x))); save(); view='all'; buildPlatformOptions(); render(); } }catch(err){ alert('Could not import: '+err.message); } e.target.value=''; };
+  reader.onload=()=>{ try{ const a=JSON.parse(reader.result); if(!Array.isArray(a)) throw new Error('File is not a games list'); if(confirm('Import '+a.length+' games? This replaces your current '+games.length+'.')){ games=prep(a.map(x=>Object.assign({title:'',platforms:[],group:'',ord:0,mp:false,finished:'',started:'',want100:'',done100:'',replayable:'',want:null,final:null,comments:''},x))); save(); view='all'; buildPlatformOptions(); render(); } }catch(err){ alert('Could not import: '+err.message); } e.target.value=''; };
   reader.readAsText(file);
 }
+let dragId=null, dragGrp=null;
+function clearDto(){ document.querySelectorAll('tr.dto').forEach(r=>r.classList.remove('dto')); }
+function onDragStart(e){ const tr=e.target.closest('tr[draggable="true"]'); if(!tr) return; dragId=tr.dataset.id; dragGrp=tr.dataset.grp; if(e.dataTransfer){ e.dataTransfer.effectAllowed='move'; try{e.dataTransfer.setData('text/plain',dragId);}catch(_){} } }
+function onDragOver(e){ if(dragId==null) return; const tr=e.target.closest('tr[data-grp]'); if(tr && tr.dataset.grp===dragGrp){ e.preventDefault(); clearDto(); if(tr.dataset.id!==dragId) tr.classList.add('dto'); } }
+function onDrop(e){ if(dragId==null) return; const tr=e.target.closest('tr[data-grp]'); clearDto(); if(!tr||tr.dataset.grp!==dragGrp){ dragId=null; return; } e.preventDefault(); const targetId=tr.dataset.id; if(targetId===dragId){ dragId=null; return; } const members=visibleGames().filter(g=>(g.group||'').trim()===dragGrp); const ids=members.map(g=>g.id); const from=ids.indexOf(dragId), to=ids.indexOf(targetId); if(from<0||to<0){ dragId=null; return; } ids.splice(to,0,ids.splice(from,1)[0]); ids.forEach((id,ix)=>{ const g=games.find(x=>x.id===id); if(g) g.ord=ix; }); dragId=null; dragGrp=null; save(); render(); }
+function onDragEnd(){ dragId=null; dragGrp=null; clearDto(); }
 function onMainClick(e){
+  const dg=e.target.closest('[data-delgrp]'); if(dg){ const name=dg.dataset.delgrp; if(confirm('Delete the "'+name+'" group? The games stay in your library — they just leave the group.')){ games.forEach(g=>{ if((g.group||'').trim()===name) g.group=''; }); save(); render(); } return; }
   const btn=e.target.closest('button[data-act]'); if(!btn) return;
   const act=btn.dataset.act;
   if(act==='tog') toggleField(btn.dataset.id, btn.dataset.field);
@@ -418,16 +514,22 @@ function bind(){
   f('platform').addEventListener('change',e=>{ filters.platform=e.target.value; render(); });
   f('sort').addEventListener('change',e=>{ filters.sort=e.target.value; render(); });
   f('addBtn').addEventListener('click',()=>openModal(null));
+  f('createGroupBtn').addEventListener('click',openGroupModal);
   f('exportJson').addEventListener('click',exportJSON);
   f('exportCsv').addEventListener('click',exportCSV);
   f('importBtn').addEventListener('click',()=>f('importFile').click());
   f('importFile').addEventListener('change',importJSON);
   f('main').addEventListener('click',onMainClick);
+  f('main').addEventListener('dragstart',onDragStart);
+  f('main').addEventListener('dragover',onDragOver);
+  f('main').addEventListener('drop',onDrop);
+  f('main').addEventListener('dragend',onDragEnd);
   f('mCancel').addEventListener('click',closeModal);
   f('mSave').addEventListener('click',saveModal);
   f('mMpBtn').addEventListener('click',()=>{ modalMp=!modalMp; updateMpUI(); });
   f('mStarted').addEventListener('input',updateFinalState);
   f('mFin').addEventListener('input',updateFinalState);
+  f('mGroup').addEventListener('change',e=>{ if(e.target.value==='__new__'){ const name=(prompt('New group name:')||'').trim(); fillGroupSelect(name); } });
   document.getElementById('mPlats').addEventListener('click',e=>{
     const add=e.target.closest('#addPlatChip');
     if(add){ const name=(prompt('New platform name:')||'').trim(); if(name && modalPlats.indexOf(name)<0) modalPlats.push(name); renderPlatChips(); return; }
@@ -435,7 +537,13 @@ function bind(){
     const p=chip.dataset.plat; const i=modalPlats.indexOf(p); if(i>=0) modalPlats.splice(i,1); else modalPlats.push(p); renderPlatChips();
   });
   document.getElementById('modal').addEventListener('click',e=>{ if(e.target.id==='modal') closeModal(); });
-  document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
+  f('gCancel').addEventListener('click',closeGroupModal);
+  f('gSave').addEventListener('click',saveGroup);
+  f('gSearch').addEventListener('input',renderGList);
+  f('gList').addEventListener('change',e=>{ const cb=e.target.closest('input[data-gid]'); if(!cb) return; if(cb.checked) gChecked.add(cb.dataset.gid); else gChecked.delete(cb.dataset.gid); });
+  f('gAuto').addEventListener('click',()=>{ if(confirm('Auto-detect franchises from titles and create those groups? Only affects games that have no group yet.')){ autoGroup(); save(); closeGroupModal(); if(filters.sort!=='group'){ filters.sort='group'; f('sort').value='group'; } render(); } });
+  document.getElementById('groupModal').addEventListener('click',e=>{ if(e.target.id==='groupModal') closeGroupModal(); });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeModal(); closeGroupModal(); } });
 }
 buildPlatformOptions(); bind(); render();
 </script>
