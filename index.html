@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Backlog Catalog</title>
-<meta name="app-version" content="1.1.0">
+<meta name="app-version" content="1.2.0">
 <style>
 :root{
   --bg:#0f1420;--panel:#171d2b;--panel2:#1e2535;--side:#0c111c;--line:#2a3346;--text:#e7ebf3;--muted:#8b95a9;
@@ -111,6 +111,8 @@ input.err{border-color:var(--red)}
 .bkwarn{color:var(--hot-text);font-weight:600}
 .mtag{display:inline-flex;align-items:center;gap:4px;background:var(--accent);color:#fff;border-radius:999px;padding:3px 8px 3px 10px;font-size:12px;font-weight:600;margin:2px 4px 2px 0}
 .mtag button{background:none;border:none;color:#fff;cursor:pointer;font-size:12px;padding:0;line-height:1}
+.cellEdit{width:100%;min-width:56px;padding:4px 6px;font-size:13px}
+td[data-f]{cursor:cell}
 @media(max-width:700px){
   .layout{flex-direction:column;height:100vh}
   .sidebar{width:auto;border-right:none;border-bottom:1px solid var(--line);overflow:visible}
@@ -164,7 +166,7 @@ input.err{border-color:var(--red)}
       <button id="importBtn" class="btn">Import</button>
     </div>
     <main id="main"></main>
-    <footer>Tip: <b>Sort &#8250; Group</b> brackets your groups &#8212; drag rows within a group to reorder, or click &#215; on a group to delete it. Auto-saves here; <b>Export JSON</b> to back up.</footer>
+    <footer>Tip: <b>double-click</b> any cell to edit it in place (Enter saves, Esc cancels); click the &#8211; under Finished/Started to toggle. Drag rows within a group to reorder; &#215; deletes a group. Auto-saves here; <b>Export JSON</b> to back up.</footer>
   </div>
 </div>
 
@@ -216,7 +218,7 @@ input.err{border-color:var(--red)}
 <script>
 const SEED = [];
 const LS_KEY = 'backlogCatalog.starter.v1';
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.2.0';
 const BK_KEY = LS_KEY + '.lastBackup';
 const DEFAULT_TAGS = ['RPG','FPS','RTS','MMORPG','Platformer','Adventure','Strategy','Racing','Fighting','Puzzle','Horror','Survival'];
 const PLATFORMS = ['PC','Xbox','PlayStation','Nintendo'];
@@ -343,16 +345,16 @@ function toggleCell(g,field){
 }
 function statusCell(g,field){ if(isMp(g)) return '<span class="mp-no" title="Multiplayer only — N/A">&#8856;</span>'; return toggleCell(g,field); }
 function gameCells(g){
-  return '<td class="title">'+esc(g.title)+(isMp(g)?' <span class="mp-tag">MP</span>':'')+((g.tags&&g.tags.length)?'<div class="tagline">'+g.tags.map(t=>'<span class="tagb">'+esc(t)+'</span>').join('')+'</div>':'')+'</td>'
-    +'<td class="plat">'+badges(g)+'</td>'
+  return '<td class="title" data-f="title" title="Double-click to edit">'+esc(g.title)+(isMp(g)?' <span class="mp-tag">MP</span>':'')+((g.tags&&g.tags.length)?'<div class="tagline">'+g.tags.map(t=>'<span class="tagb">'+esc(t)+'</span>').join('')+'</div>':'')+'</td>'
+    +'<td class="plat" data-f="plat" title="Double-click to open editor">'+badges(g)+'</td>'
     +'<td class="center">'+statusCell(g,'finished')+'</td>'
     +'<td class="center">'+statusCell(g,'started')+'</td>'
-    +'<td class="center">'+esc(g.want100||'')+'</td>'
-    +'<td class="center">'+esc(g.done100||'')+'</td>'
-    +'<td class="center">'+esc(g.replayable||'')+'</td>'
-    +'<td class="center">'+rateCell(wantNum(g))+'</td>'
-    +'<td class="center">'+rateCell(finalNum(g))+'</td>'
-    +'<td class="comments">'+esc(g.comments||'')+'</td>'
+    +'<td class="center" data-f="want100" title="Double-click to edit">'+esc(g.want100||'')+'</td>'
+    +'<td class="center" data-f="done100" title="Double-click to edit">'+esc(g.done100||'')+'</td>'
+    +'<td class="center" data-f="replayable" title="Double-click to edit">'+esc(g.replayable||'')+'</td>'
+    +'<td class="center" data-f="want" title="Double-click to edit">'+rateCell(wantNum(g))+'</td>'
+    +'<td class="center" data-f="final" title="Double-click to edit">'+rateCell(finalNum(g))+'</td>'
+    +'<td class="comments" data-f="comments" title="Double-click to edit">'+esc(g.comments||'')+'</td>'
     +'<td class="actions"><button class="icon" data-act="edit" data-id="'+g.id+'" title="Edit">&#9998;</button>'
     +'<button class="icon danger" data-act="del" data-id="'+g.id+'" title="Delete">&#128465;</button></td>';
 }
@@ -535,9 +537,56 @@ function importJSON(e){
   reader.onload=()=>{ try{ const parsed=JSON.parse(reader.result); const a=Array.isArray(parsed)?parsed:((parsed&&Array.isArray(parsed.games))?parsed.games:null); if(!a) throw new Error('File is not a games list'); if(confirm('Import '+a.length+' games? This replaces your current '+games.length+'.')){ games=prep(a.map(x=>Object.assign({title:'',platforms:[],group:'',ord:0,tags:[],mp:false,finished:'',started:'',want100:'',done100:'',replayable:'',want:null,final:null,comments:''},x))); save(); view='all'; buildPlatformOptions(); render(); } }catch(err){ alert('Could not import: '+err.message); } e.target.value=''; };
   reader.readAsText(file);
 }
+/* ---- inline cell editing (double-click) ---- */
+function onCellDblClick(e){
+  const td=e.target.closest('td[data-f]'); if(!td) return;
+  const tr=td.closest('tr[data-id]'); if(!tr) return;
+  const g=games.find(x=>x.id===tr.dataset.id); if(!g) return;
+  const field=td.dataset.f;
+  if(field==='plat'){ openModal(g.id); return; }
+  if(field==='final'){
+    if(isMp(g)) return;
+    if(!(isStarted(g)||isFinished(g))){ alert('Final Rating unlocks once the game is marked Started/Played.'); return; }
+  }
+  if(td.querySelector('input,select')) return;
+  startCellEdit(td,g,field);
+}
+function startCellEdit(td,g,field){
+  const type=(field==='want'||field==='final')?'num':((field==='want100'||field==='done100'||field==='replayable')?'yn':'text');
+  const cur=(type==='num')?((g[field]===0||g[field])?String(g[field]):''):(g[field]||'');
+  let el;
+  if(type==='yn'){
+    el=document.createElement('select');
+    [['','—'],['Yes','Yes'],['No','No'],['N/A','N/A']].forEach(p=>{ const o=document.createElement('option'); o.value=p[0]; o.textContent=p[1]; el.appendChild(o); });
+    el.value=(['Yes','No','N/A'].indexOf(cur)>=0)?cur:'';
+  } else {
+    el=document.createElement('input');
+    el.type=(type==='num')?'number':'text';
+    if(type==='num'){ el.min=0; el.max=10; el.step=0.5; }
+    el.value=cur;
+  }
+  el.className='cellEdit';
+  td.innerHTML=''; td.appendChild(el); el.focus(); if(el.select) el.select();
+  let done=false;
+  const commit=()=>{ if(done) return; done=true;
+    let v=el.value;
+    if(type==='num'){ v=String(v).trim(); v=(v==='')?null:Number(v); if(v!=null&&isNaN(v)) v=null; if(v!=null) v=Math.max(0,Math.min(10,v));
+      g[field]=v;
+      if(field==='final'&&v!=null&&!yes(g.started)&&!yes(g.finished)) g.started='Yes';
+    }
+    else if(field==='title'){ const t=String(v).trim(); if(t) g.title=t; }
+    else { g[field]=String(v).trim(); }
+    save(); render();
+  };
+  const cancel=()=>{ if(done) return; done=true; render(); };
+  el.addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ ev.preventDefault(); commit(); } else if(ev.key==='Escape'){ ev.preventDefault(); cancel(); } });
+  el.addEventListener('blur',commit);
+  if(type==='yn') el.addEventListener('change',commit);
+}
+
 let dragId=null, dragGrp=null;
 function clearDto(){ document.querySelectorAll('tr.dto').forEach(r=>r.classList.remove('dto')); }
-function onDragStart(e){ const tr=e.target.closest('tr[draggable="true"]'); if(!tr) return; dragId=tr.dataset.id; dragGrp=tr.dataset.grp; if(e.dataTransfer){ e.dataTransfer.effectAllowed='move'; try{e.dataTransfer.setData('text/plain',dragId);}catch(_){} } }
+function onDragStart(e){ if(e.target.closest && e.target.closest('.cellEdit')){ e.preventDefault(); return; } const tr=e.target.closest('tr[draggable="true"]'); if(!tr) return; dragId=tr.dataset.id; dragGrp=tr.dataset.grp; if(e.dataTransfer){ e.dataTransfer.effectAllowed='move'; try{e.dataTransfer.setData('text/plain',dragId);}catch(_){} } }
 function onDragOver(e){ if(dragId==null) return; const tr=e.target.closest('tr[data-grp]'); if(tr && tr.dataset.grp===dragGrp){ e.preventDefault(); clearDto(); if(tr.dataset.id!==dragId) tr.classList.add('dto'); } }
 function onDrop(e){ if(dragId==null) return; const tr=e.target.closest('tr[data-grp]'); clearDto(); if(!tr||tr.dataset.grp!==dragGrp){ dragId=null; return; } e.preventDefault(); const targetId=tr.dataset.id; if(targetId===dragId){ dragId=null; return; } const members=games.filter(g=>(g.group||'').trim()===dragGrp).slice().sort((a,b)=>((a.ord||0)-(b.ord||0))||(a.title||'').localeCompare(b.title||'')); const ids=members.map(g=>g.id); const from=ids.indexOf(dragId), to=ids.indexOf(targetId); if(from<0||to<0){ dragId=null; return; } ids.splice(to,0,ids.splice(from,1)[0]); ids.forEach((id,ix)=>{ const g=games.find(x=>x.id===id); if(g) g.ord=ix; }); dragId=null; dragGrp=null; save(); render(); }
 function onDragEnd(){ dragId=null; dragGrp=null; clearDto(); }
@@ -562,6 +611,7 @@ function bind(){
   f('importBtn').addEventListener('click',()=>f('importFile').click());
   f('importFile').addEventListener('change',importJSON);
   f('main').addEventListener('click',onMainClick);
+  f('main').addEventListener('dblclick',onCellDblClick);
   f('main').addEventListener('dragstart',onDragStart);
   f('main').addEventListener('dragover',onDragOver);
   f('main').addEventListener('drop',onDrop);
