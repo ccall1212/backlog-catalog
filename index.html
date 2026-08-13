@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Backlog Catalog</title>
-<meta name="app-version" content="1.2.0">
+<meta name="app-version" content="1.3.0">
 <style>
 :root{
   --bg:#0f1420;--panel:#171d2b;--panel2:#1e2535;--side:#0c111c;--line:#2a3346;--text:#e7ebf3;--muted:#8b95a9;
@@ -59,6 +59,9 @@ td.grpcell{background:var(--panel);vertical-align:middle;font-size:12px;font-wei
 td.grpcell.g{color:var(--accent);border-left:3px solid var(--accent)}
 .gdel{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 4px;border-radius:4px;line-height:1}
 .gdel:hover{color:var(--red)}
+.gtag{background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0 3px;border-radius:4px;line-height:1}
+.gtag:hover{color:var(--accent)}
+.grpbtns{display:block;margin-top:4px;white-space:nowrap}
 tr[draggable="true"]{cursor:grab}
 tr.dto td{box-shadow:inset 0 2px 0 var(--accent)}
 .badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;background:#33415533;color:#cdd6e6;margin:1px 2px 1px 0}
@@ -212,13 +215,25 @@ td[data-f]{cursor:cell}
   </div>
 </div>
 
+<div id="tagGroupModal" class="modal">
+  <div class="dialog" style="max-width:460px">
+    <h2 id="tgHdr">Tag group</h2>
+    <p class="hint" id="tgSub" style="margin:-8px 0 14px"></p>
+    <label class="hint">Tags on this group</label>
+    <div id="tgCurrent" style="margin:6px 0 14px"></div>
+    <label class="hint">Add a tag to every game in this group</label>
+    <select id="tgSel" style="width:100%;margin-top:6px"></select>
+    <div class="dlg-actions"><button id="tgDone" class="btn primary">Done</button></div>
+  </div>
+</div>
+
 <datalist id="ynList"><option value="Yes"></option><option value="No"></option><option value="N/A"></option></datalist>
 <input id="importFile" type="file" accept="application/json,.json" hidden>
 
 <script>
 const SEED = [];
 const LS_KEY = 'backlogCatalog.starter.v1';
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.3.0';
 const BK_KEY = LS_KEY + '.lastBackup';
 const DEFAULT_TAGS = ['RPG','FPS','RTS','MMORPG','Platformer','Adventure','Strategy','Racing','Fighting','Puzzle','Horror','Survival'];
 const PLATFORMS = ['PC','Xbox','PlayStation','Nintendo'];
@@ -371,7 +386,7 @@ function groupTableHtml(list){
     const grp=(list[i].group||'').trim();
     if(grp){
       let j=i; while(j<list.length && (list[j].group||'').trim()===grp) j++;
-      for(let k=i;k<j;k++){ const lead=(k===i)?'<td class="grpcell g" rowspan="'+(j-i)+'">'+esc(grp)+' <button class="gdel" data-delgrp="'+esc(grp)+'" title="Delete group">&#215;</button></td>':''; body+='<tr draggable="true" data-grp="'+esc(grp)+'" data-id="'+list[k].id+'">'+lead+gameCells(list[k])+'</tr>'; }
+      for(let k=i;k<j;k++){ const lead=(k===i)?'<td class="grpcell g" rowspan="'+(j-i)+'">'+esc(grp)+'<span class="grpbtns"><button class="gtag" data-taggrp="'+esc(grp)+'" title="Tag every game in this group">&#127991; tag</button><button class="gdel" data-delgrp="'+esc(grp)+'" title="Delete group">&#215;</button></span></td>':''; body+='<tr draggable="true" data-grp="'+esc(grp)+'" data-id="'+list[k].id+'">'+lead+gameCells(list[k])+'</tr>'; }
       i=j;
     } else { body+='<tr data-id="'+list[i].id+'"><td class="grpcell"></td>'+gameCells(list[i])+'</tr>'; i++; }
   }
@@ -537,6 +552,41 @@ function importJSON(e){
   reader.onload=()=>{ try{ const parsed=JSON.parse(reader.result); const a=Array.isArray(parsed)?parsed:((parsed&&Array.isArray(parsed.games))?parsed.games:null); if(!a) throw new Error('File is not a games list'); if(confirm('Import '+a.length+' games? This replaces your current '+games.length+'.')){ games=prep(a.map(x=>Object.assign({title:'',platforms:[],group:'',ord:0,tags:[],mp:false,finished:'',started:'',want100:'',done100:'',replayable:'',want:null,final:null,comments:''},x))); save(); view='all'; buildPlatformOptions(); render(); } }catch(err){ alert('Could not import: '+err.message); } e.target.value=''; };
   reader.readAsText(file);
 }
+/* ---- group tagging (tag every game in a group at once) ---- */
+let tgGroup='';
+function groupMembers(name){ return games.filter(g=>(g.group||'').trim()===name); }
+function openTagGroupModal(name){
+  tgGroup=name;
+  const n=groupMembers(name).length;
+  f('tgHdr').textContent='Tag group: '+name;
+  f('tgSub').textContent='Applies to all '+n+' game'+(n===1?'':'s')+' in this group. You can still adjust individual games afterward.';
+  renderTagGroup();
+  document.getElementById('tagGroupModal').classList.add('show');
+}
+function closeTagGroupModal(){ document.getElementById('tagGroupModal').classList.remove('show'); tgGroup=''; }
+function renderTagGroup(){
+  const ms=groupMembers(tgGroup);
+  const counts={};
+  ms.forEach(g=>(g.tags||[]).forEach(t=>{ counts[t]=(counts[t]||0)+1; }));
+  const present=Object.keys(counts).sort();
+  f('tgCurrent').innerHTML = present.length
+    ? present.map(t=>'<span class="mtag">'+esc(t)+(counts[t]<ms.length?' <span style="opacity:.75;font-weight:400">('+counts[t]+'/'+ms.length+')</span>':'')+'<button type="button" data-tgrm="'+esc(t)+'" title="Remove from every game in this group">&#215;</button></span>').join('')
+    : '<span class="hint">none yet</span>';
+  const sel=f('tgSel');
+  const opts=Array.from(new Set(usedTags().concat(DEFAULT_TAGS))).sort().filter(t=>counts[t]!==ms.length);
+  sel.innerHTML='<option value="">Add a tag&#8230;</option>'+opts.map(t=>'<option value="'+esc(t)+'">'+esc(t)+'</option>').join('')+'<option value="__new__">+ New tag&#8230;</option>';
+  sel.value='';
+}
+function tagGroupAdd(tag){
+  if(!tag) return;
+  groupMembers(tgGroup).forEach(g=>{ if(!Array.isArray(g.tags)) g.tags=[]; if(!g.tags.some(t=>t.toLowerCase()===tag.toLowerCase())) g.tags.push(tag); });
+  save(); renderTagGroup(); render();
+}
+function tagGroupRemove(tag){
+  groupMembers(tgGroup).forEach(g=>{ if(!Array.isArray(g.tags)) return; const i=g.tags.findIndex(t=>t.toLowerCase()===tag.toLowerCase()); if(i>=0) g.tags.splice(i,1); });
+  save(); renderTagGroup(); render();
+}
+
 /* ---- inline cell editing (double-click) ---- */
 function onCellDblClick(e){
   const td=e.target.closest('td[data-f]'); if(!td) return;
@@ -591,6 +641,7 @@ function onDragOver(e){ if(dragId==null) return; const tr=e.target.closest('tr[d
 function onDrop(e){ if(dragId==null) return; const tr=e.target.closest('tr[data-grp]'); clearDto(); if(!tr||tr.dataset.grp!==dragGrp){ dragId=null; return; } e.preventDefault(); const targetId=tr.dataset.id; if(targetId===dragId){ dragId=null; return; } const members=games.filter(g=>(g.group||'').trim()===dragGrp).slice().sort((a,b)=>((a.ord||0)-(b.ord||0))||(a.title||'').localeCompare(b.title||'')); const ids=members.map(g=>g.id); const from=ids.indexOf(dragId), to=ids.indexOf(targetId); if(from<0||to<0){ dragId=null; return; } ids.splice(to,0,ids.splice(from,1)[0]); ids.forEach((id,ix)=>{ const g=games.find(x=>x.id===id); if(g) g.ord=ix; }); dragId=null; dragGrp=null; save(); render(); }
 function onDragEnd(){ dragId=null; dragGrp=null; clearDto(); }
 function onMainClick(e){
+  const tg=e.target.closest('[data-taggrp]'); if(tg){ openTagGroupModal(tg.dataset.taggrp); return; }
   const dg=e.target.closest('[data-delgrp]'); if(dg){ const name=dg.dataset.delgrp; if(confirm('Delete the "'+name+'" group? The games stay in your library — they just leave the group.')){ games.forEach(g=>{ if((g.group||'').trim()===name) g.group=''; }); save(); render(); } return; }
   const btn=e.target.closest('button[data-act]'); if(!btn) return;
   const act=btn.dataset.act;
@@ -637,7 +688,11 @@ function bind(){
   f('gList').addEventListener('change',e=>{ const cb=e.target.closest('input[data-gid]'); if(!cb) return; if(cb.checked) gChecked.add(cb.dataset.gid); else gChecked.delete(cb.dataset.gid); });
   f('gAuto').addEventListener('click',()=>{ if(confirm('Auto-detect franchises from titles and create those groups? Only affects games that have no group yet.')){ autoGroup(); save(); closeGroupModal(); if(filters.sort!=='group'){ filters.sort='group'; f('sort').value='group'; } render(); } });
   document.getElementById('groupModal').addEventListener('click',e=>{ if(e.target.id==='groupModal') closeGroupModal(); });
-  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeModal(); closeGroupModal(); } });
+  f('tgDone').addEventListener('click',closeTagGroupModal);
+  f('tgSel').addEventListener('change',e=>{ let v=e.target.value; if(!v) return; if(v==='__new__'){ v=(prompt('New tag name:')||'').trim(); } tagGroupAdd(v); });
+  f('tgCurrent').addEventListener('click',e=>{ const b=e.target.closest('[data-tgrm]'); if(b) tagGroupRemove(b.dataset.tgrm); });
+  document.getElementById('tagGroupModal').addEventListener('click',e=>{ if(e.target.id==='tagGroupModal') closeTagGroupModal(); });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeModal(); closeGroupModal(); closeTagGroupModal(); } });
 }
 buildPlatformOptions(); bind(); render();
 </script>
