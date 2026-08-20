@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Backlog Catalog</title>
-<meta name="app-version" content="1.5.0">
+<meta name="app-version" content="1.6.0">
 <meta name="theme-color" content="#0f1420">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%236366f1'/><text x='32' y='43' font-size='28' text-anchor='middle' fill='white' font-family='Segoe UI,Arial,sans-serif' font-weight='700'>BC</text></svg>">
 <style>
@@ -12,6 +12,17 @@
   --bg:#0f1420;--panel:#171d2b;--panel2:#1e2535;--side:#0c111c;--line:#2a3346;--text:#e7ebf3;--muted:#8b95a9;
   --accent:#6366f1;--accent2:#4f46e5;--hot-bg:#3a2f12;--hot-text:#ffd470;--green:#34d399;--red:#f87171;
 }
+body.theme-light{--bg:#f3f5f9;--panel:#ffffff;--panel2:#e9edf4;--side:#e6eaf2;--line:#d4dbe6;--text:#1c2434;--muted:#5d6b82;--accent:#4f46e5;--accent2:#4338ca;--hot-bg:#fdf0d2;--hot-text:#8a5b00;--green:#0a8f62;--red:#d43c3c}
+body.theme-forest{--bg:#0c1310;--panel:#131e18;--panel2:#1a2921;--side:#0a100d;--line:#27392f;--text:#e4efe8;--muted:#8aa595;--accent:#10b981;--accent2:#059669}
+body.theme-crimson{--bg:#150d10;--panel:#1f1418;--panel2:#2a1a20;--side:#100a0c;--line:#3a2630;--text:#f1e6ea;--muted:#a98f99;--accent:#e11d48;--accent2:#be123c}
+body.theme-slate{--bg:#131417;--panel:#1b1d22;--panel2:#23262d;--side:#0f1013;--line:#31343d;--text:#e8eaee;--muted:#8f95a3;--accent:#38bdf8;--accent2:#0ea5e9}
+body.theme-light .p-xbox{background:#c7f0d4;color:#14532d}
+body.theme-light .p-ps{background:#dbe1fd;color:#3730a3}
+body.theme-light .p-nin{background:#fbd5d5;color:#7f1d1d}
+body.theme-light .badge{background:#e2e8f2;color:#3a4557}
+body.theme-light .p-pc{background:#cdd3dd;color:#1b2230}
+body.theme-light tbody tr:hover{background:#eef1f7}
+body.theme-light .modal{background:rgba(30,38,55,.45)}
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;font-family:system-ui,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);font-size:14px;overflow:hidden}
@@ -29,7 +40,9 @@ body{margin:0;font-family:system-ui,'Segoe UI',Roboto,sans-serif;background:var(
 .nav-item.active .cnt{color:#fff;background:rgba(255,255,255,.22)}
 .nav-sub{display:flex;flex-direction:column;gap:2px}
 .nav-item.sub{padding-left:32px;font-size:13px}
-.side-foot{margin-top:auto;padding:14px 16px;color:var(--muted);font-size:11px;border-top:1px solid var(--line)}
+.side-theme{margin-top:auto;padding:12px 16px 4px}
+.side-theme select{width:100%;font-size:12px;padding:5px 8px}
+.side-foot{padding:12px 16px 14px;color:var(--muted);font-size:11px;border-top:1px solid var(--line)}
 .content{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column}
 .topbar{flex-shrink:0;display:flex;align-items:center;gap:12px;padding:16px 22px 2px}
 .view-title{font-size:20px;font-weight:700}
@@ -114,6 +127,11 @@ input.err{border-color:var(--red)}
 .grow .gg{margin-left:auto;color:var(--muted);font-size:11px}
 .tagline{margin-top:3px}
 .tagb{display:inline-block;font-size:10px;font-weight:600;color:var(--muted);background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:1px 7px;margin:1px 3px 0 0}
+.tagb[style]{background:transparent;border-color:hsl(var(--th),45%,45%);color:hsl(var(--th),65%,70%)}
+body.theme-light .tagb[style]{border-color:hsl(var(--th),45%,60%);color:hsl(var(--th),75%,30%)}
+.swatch{width:24px;height:24px;border-radius:50%;display:inline-block;margin:2px 8px 2px 0;cursor:pointer;border:2px solid transparent;vertical-align:middle;padding:0}
+.swatch.on{border-color:var(--text)}
+.swatch.none{background:var(--panel2);color:var(--muted);font-size:12px;line-height:1}
 .bkwarn{color:var(--hot-text);font-weight:600}
 .mtag{display:inline-flex;align-items:center;gap:4px;background:var(--accent);color:#fff;border-radius:999px;padding:3px 8px 3px 10px;font-size:12px;font-weight:600;margin:2px 4px 2px 0}
 .mtag button{background:none;border:none;color:#fff;cursor:pointer;font-size:12px;padding:0;line-height:1}
@@ -149,6 +167,7 @@ td[data-f],.chk{touch-action:manipulation}
       </div>
       <button class="nav-item" data-view="stats">Stats</button>
     </nav>
+    <div class="side-theme"><select id="themeSel" title="Theme"></select></div>
     <div class="side-foot" id="sideFoot"></div>
   </aside>
 
@@ -232,6 +251,8 @@ td[data-f],.chk{touch-action:manipulation}
     <div id="tgCurrent" style="margin:6px 0 14px"></div>
     <label class="hint">Add a tag to every game in this group</label>
     <select id="tgSel" style="width:100%;margin-top:6px"></select>
+    <label class="hint" style="display:block;margin-top:14px">Group color <span style="opacity:.7">&#8212; tints the group bracket</span></label>
+    <div id="tgColors" style="margin-top:6px"></div>
     <div class="dlg-actions"><button id="tgDone" class="btn primary">Done</button></div>
   </div>
 </div>
@@ -242,9 +263,25 @@ td[data-f],.chk{touch-action:manipulation}
 <script>
 const SEED = [];
 const LS_KEY = 'backlogCatalog.starter.v1';
-const APP_VERSION = '1.5.0';
+const APP_VERSION = '1.6.0';
 const BK_KEY = LS_KEY + '.lastBackup';
 const DEFAULT_TAGS = ['RPG','FPS','RTS','MMORPG','Platformer','Adventure','Strategy','Racing','Fighting','Puzzle','Horror','Survival'];
+const THEME_KEY = LS_KEY + '.theme';
+const THEMES = ['Midnight','Light','Forest','Crimson','Slate'];
+const GC_KEY = LS_KEY + '.groupColors';
+const GROUP_PALETTE = ['#6366f1','#10b981','#ef4444','#f59e0b','#a855f7','#06b6d4','#ec4899','#eab308'];
+let groupColors = {};
+try{ const gcRaw=localStorage.getItem(GC_KEY); if(gcRaw){ const p=JSON.parse(gcRaw); if(p&&typeof p==='object') Object.keys(p).forEach(k=>{ if(typeof p[k]==='string'&&/^#[0-9a-fA-F]{6}$/.test(p[k])) groupColors[k]=p[k]; }); } }catch(e){}
+function saveGroupColors(){ try{ localStorage.setItem(GC_KEY, JSON.stringify(groupColors)); }catch(e){} }
+const TAG_HUES = [231,152,0,32,268,190,330,50];
+function tagHue(t){ let h=0; const s=String(t).toLowerCase(); for(let i=0;i<s.length;i++){ h=(h*31+s.charCodeAt(i))>>>0; } return TAG_HUES[h%TAG_HUES.length]; }
+function applyTheme(name){
+  if(THEMES.indexOf(name)<0) name='Midnight';
+  document.body.className = (name==='Midnight') ? '' : 'theme-'+name.toLowerCase();
+  try{ localStorage.setItem(THEME_KEY, name); }catch(e){}
+  const tc=document.querySelector('meta[name="theme-color"]');
+  if(tc){ requestAnimationFrame(function(){ tc.setAttribute('content', (getComputedStyle(document.body).getPropertyValue('--bg')||'#0f1420').trim()); }); }
+}
 const PLATFORMS = ['PC','Xbox','PlayStation','Nintendo'];
 const PRANK = {PC:0,Xbox:1,PlayStation:2,Nintendo:3};
 const PLAT_CLASS = {PC:'p-pc',Xbox:'p-xbox',PlayStation:'p-ps',Nintendo:'p-nin'};
@@ -371,7 +408,7 @@ function toggleCell(g,field){
 function statusCell(g,field){ if(isMp(g)) return '<span class="mp-no" title="Multiplayer only — N/A">&#8856;</span>'; return toggleCell(g,field); }
 function gameCells(g, inGroup){
   const arrows = (inGroup && TOUCH) ? '<button class="icon" data-act="up" data-id="'+g.id+'" title="Move up">&#9650;</button><button class="icon" data-act="down" data-id="'+g.id+'" title="Move down">&#9660;</button>' : '';
-  return '<td class="title" data-f="title" title="Double-click to edit">'+esc(g.title)+(isMp(g)?' <span class="mp-tag">MP</span>':'')+((g.tags&&g.tags.length)?'<div class="tagline">'+g.tags.map(t=>'<span class="tagb">'+esc(t)+'</span>').join('')+'</div>':'')+'</td>'
+  return '<td class="title" data-f="title" title="Double-click to edit">'+esc(g.title)+(isMp(g)?' <span class="mp-tag">MP</span>':'')+((g.tags&&g.tags.length)?'<div class="tagline">'+g.tags.map(t=>'<span class="tagb" style="--th:'+tagHue(t)+'">'+esc(t)+'</span>').join('')+'</div>':'')+'</td>'
     +'<td class="plat" data-f="plat" title="Double-click to open editor">'+badges(g)+'</td>'
     +'<td class="center">'+statusCell(g,'finished')+'</td>'
     +'<td class="center">'+statusCell(g,'started')+'</td>'
@@ -397,7 +434,7 @@ function groupTableHtml(list){
     const grp=(list[i].group||'').trim();
     if(grp){
       let j=i; while(j<list.length && (list[j].group||'').trim()===grp) j++;
-      for(let k=i;k<j;k++){ const lead=(k===i)?'<td class="grpcell g" rowspan="'+(j-i)+'">'+esc(grp)+'<span class="grpbtns"><button class="gtag" data-taggrp="'+esc(grp)+'" title="Tag every game in this group">&#127991; tag</button><button class="gdel" data-delgrp="'+esc(grp)+'" title="Delete group">&#215;</button></span></td>':''; body+='<tr draggable="true" data-grp="'+esc(grp)+'" data-id="'+list[k].id+'">'+lead+gameCells(list[k], true)+'</tr>'; }
+      for(let k=i;k<j;k++){ const gc=groupColors[grp]; const lead=(k===i)?'<td class="grpcell g" rowspan="'+(j-i)+'"'+(gc?' style="border-left-color:'+gc+';color:'+gc+'"':'')+'>'+esc(grp)+'<span class="grpbtns"><button class="gtag" data-taggrp="'+esc(grp)+'" title="Tag every game in this group">&#127991; tag</button><button class="gdel" data-delgrp="'+esc(grp)+'" title="Delete group">&#215;</button></span></td>':''; body+='<tr draggable="true" data-grp="'+esc(grp)+'" data-id="'+list[k].id+'">'+lead+gameCells(list[k], true)+'</tr>'; }
       i=j;
     } else { body+='<tr data-id="'+list[i].id+'"><td class="grpcell"></td>'+gameCells(list[i])+'</tr>'; i++; }
   }
@@ -548,7 +585,7 @@ function autoGroup(){ let n=0; games.forEach(g=>{ if(!(g.group||'').trim()){ con
 function download(name,text,type){ const b=new Blob([text],{type:type||'application/octet-stream'}); const u=URL.createObjectURL(b); const a=document.createElement('a'); a.href=u; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u),1000); }
 function stripId(g){ const o={}; for(const k in g){ if(k!=='id'&&k!=='platform'&&k!=='rating'&&k!=='series') o[k]=g[k]; } return o; }
 function exportJSON(){
-  const env={ app:'Backlog Catalog', version:APP_VERSION, exported:new Date().toISOString(), games:games.map(stripId) };
+  const env={ app:'Backlog Catalog', version:APP_VERSION, exported:new Date().toISOString(), groupColors:groupColors, games:games.map(stripId) };
   download('games-library-backup.json', JSON.stringify(env,null,2), 'application/json');
   try{ localStorage.setItem(BK_KEY, String(Date.now())); }catch(e){}
   render();
@@ -563,7 +600,7 @@ function exportCSV(){
 function importJSON(e){
   const file=e.target.files[0]; if(!file) return;
   const reader=new FileReader();
-  reader.onload=()=>{ try{ const parsed=JSON.parse(reader.result); const a=Array.isArray(parsed)?parsed:((parsed&&Array.isArray(parsed.games))?parsed.games:null); if(!a) throw new Error('File is not a games list'); if(confirm('Import '+a.length+' games? This replaces your current '+games.length+'.')){ games=prep(a.map(x=>Object.assign({title:'',group:'',ord:0,tags:[],mp:false,finished:'',want100:'',done100:'',replayable:'',comments:''},x)), true); save(); view='all'; buildPlatformOptions(); render(); } }catch(err){ alert('Could not import: '+err.message); } e.target.value=''; };
+  reader.onload=()=>{ try{ const parsed=JSON.parse(reader.result); const a=Array.isArray(parsed)?parsed:((parsed&&Array.isArray(parsed.games))?parsed.games:null); if(!a) throw new Error('File is not a games list'); if(confirm('Import '+a.length+' games? This replaces your current '+games.length+'.')){ if(parsed&&!Array.isArray(parsed)&&parsed.groupColors&&typeof parsed.groupColors==='object'){ groupColors={}; Object.keys(parsed.groupColors).forEach(k=>{ const v=parsed.groupColors[k]; if(typeof v==='string'&&/^#[0-9a-fA-F]{6}$/.test(v)) groupColors[k]=v; }); saveGroupColors(); } games=prep(a.map(x=>Object.assign({title:'',group:'',ord:0,tags:[],mp:false,finished:'',want100:'',done100:'',replayable:'',comments:''},x)), true); save(); view='all'; buildPlatformOptions(); render(); } }catch(err){ alert('Could not import: '+err.message); } e.target.value=''; };
   reader.readAsText(file);
 }
 /* ---- group tagging (tag every game in a group at once) ---- */
@@ -590,6 +627,8 @@ function renderTagGroup(){
   const opts=Array.from(new Set(usedTags().concat(DEFAULT_TAGS))).sort().filter(t=>counts[t]!==ms.length);
   sel.innerHTML='<option value="">Add a tag&#8230;</option>'+opts.map(t=>'<option value="'+esc(t)+'">'+esc(t)+'</option>').join('')+'<option value="__new__">+ New tag&#8230;</option>';
   sel.value='';
+  const cw=f('tgColors');
+  if(cw){ const cur=groupColors[tgGroup]||''; cw.innerHTML = GROUP_PALETTE.map(c=>'<button type="button" class="swatch'+(cur===c?' on':'')+'" data-gc="'+c+'" style="background:'+c+'" title="'+c+'"></button>').join('')+'<button type="button" class="swatch none'+(cur===''?' on':'')+'" data-gc="" title="No color">&#8709;</button>'; }
 }
 function tagGroupAdd(tag){
   if(!tag) return;
@@ -667,7 +706,7 @@ function moveInGroup(id,dir){
 }
 function onMainClick(e){
   const tg=e.target.closest('[data-taggrp]'); if(tg){ openTagGroupModal(tg.dataset.taggrp); return; }
-  const dg=e.target.closest('[data-delgrp]'); if(dg){ const name=dg.dataset.delgrp; if(confirm('Delete the "'+name+'" group? The games stay in your library — they just leave the group.')){ games.forEach(g=>{ if((g.group||'').trim()===name) g.group=''; }); save(); render(); } return; }
+  const dg=e.target.closest('[data-delgrp]'); if(dg){ const name=dg.dataset.delgrp; if(confirm('Delete the "'+name+'" group? The games stay in your library — they just leave the group.')){ games.forEach(g=>{ if((g.group||'').trim()===name) g.group=''; }); delete groupColors[name]; saveGroupColors(); save(); render(); } return; }
   const btn=e.target.closest('button[data-act]');
   if(btn){
     const act=btn.dataset.act;
@@ -722,10 +761,13 @@ function bind(){
   f('tgDone').addEventListener('click',closeTagGroupModal);
   f('tgSel').addEventListener('change',e=>{ let v=e.target.value; if(!v) return; if(v==='__new__'){ v=(prompt('New tag name:')||'').trim(); } tagGroupAdd(v); });
   f('tgCurrent').addEventListener('click',e=>{ const b=e.target.closest('[data-tgrm]'); if(b) tagGroupRemove(b.dataset.tgrm); });
+  f('tgColors').addEventListener('click',e=>{ const b=e.target.closest('[data-gc]'); if(!b||!tgGroup) return; const c=b.dataset.gc; if(c) groupColors[tgGroup]=c; else delete groupColors[tgGroup]; saveGroupColors(); renderTagGroup(); render(); });
+  f('themeSel').addEventListener('change',e=>applyTheme(e.target.value));
   document.getElementById('tagGroupModal').addEventListener('click',e=>{ if(e.target.id==='tagGroupModal') closeTagGroupModal(); });
   document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeModal(); closeGroupModal(); closeTagGroupModal(); } });
   if(TOUCH){ const ft=document.querySelector('footer'); if(ft) ft.innerHTML='Tip: <b>tap</b> a cell to edit it in place; tap the &#8211; under Finished/Started to toggle. Use the &#9650;&#9660; arrows to reorder grouped games. Auto-saves here; <b>Export JSON</b> to back up.'; }
 }
+(function(){ const sel=f('themeSel'); if(sel){ sel.innerHTML=THEMES.map(t=>'<option>'+t+'</option>').join(''); let tv='Midnight'; try{ tv=localStorage.getItem(THEME_KEY)||'Midnight'; }catch(e){} if(THEMES.indexOf(tv)<0) tv='Midnight'; sel.value=tv; applyTheme(tv); } })();
 buildPlatformOptions(); bind(); render();
 </script>
 </body>
