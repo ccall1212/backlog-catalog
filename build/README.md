@@ -38,12 +38,14 @@ No dependencies — the spreadsheet is read directly as zip + XML (no Excel, no 
 
 ## Releasing
 
-1. Bump the version in **two** places in `app_template.html`:
-   `<meta name="app-version">` and `const APP_VERSION`.
+1. Bump the version in **two** places in `app_template.html`
+   (`<meta name="app-version">` and `const APP_VERSION`) **and** the `CACHE`
+   name at the top of `../sw.js` (so installed PWAs drop their old cache).
 2. Run the build.
-3. Commit `index.html` (plus the template) with a real message, e.g.
-   `v1.4.0 - short summary`.
-4. Push. GitHub Pages redeploys in about a minute.
+3. Commit `index.html` (plus the template and `sw.js`) with a real message,
+   e.g. `v1.8.0 - short summary`.
+4. Push. GitHub Pages redeploys in about a minute; installed apps pick the new
+   version up on their next open (sometimes one extra reload).
 
 Verify what's actually live:
 

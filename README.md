@@ -29,6 +29,19 @@ Everything saves **in your own browser**, on your own device. Nothing is uploade
 
 **Export CSV** is also there if you'd rather poke at your library in Excel.
 
+## Install it as an app
+
+The site is a Progressive Web App — you can install it so it gets its own icon and
+window and works fully offline:
+
+- **Desktop (Edge/Chrome):** open the link, then click the install icon in the
+  address bar (or menu → *Apps → Install Backlog Catalog*).
+- **Android:** open the link in Chrome → menu → **Add to Home screen** / **Install app**.
+- **iPhone/iPad:** open the link in Safari → Share → **Add to Home Screen**.
+
+Updates arrive automatically: after a new release, the app picks it up the next
+time you open it (it may take one extra reload).
+
 ## Using it on another device
 
 There's no automatic sync. To move your library: **Export JSON** on one device → open the app on the other → **Import**.
@@ -39,6 +52,6 @@ Download `index.html` and open it in any browser. That's the whole app — one f
 
 ## Version
 
-Current: **v1.2.0** — see the sidebar footer for the version you're running.
+Current: **v1.7.0** — see the sidebar footer for the version you're running.
 
 <sub>Built with Claude Code.</sub>
