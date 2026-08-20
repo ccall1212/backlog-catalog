@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Backlog Catalog</title>
-<meta name="app-version" content="1.12.0">
+<meta name="app-version" content="1.13.0">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0f1420">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%236366f1'/><text x='32' y='43' font-size='28' text-anchor='middle' fill='white' font-family='Segoe UI,Arial,sans-serif' font-weight='700'>BC</text></svg>">
@@ -272,7 +272,7 @@ td[data-f],.chk{touch-action:manipulation}
   <div class="dialog" style="max-width:500px">
     <h2>Import</h2>
     <div style="display:flex;flex-direction:column;gap:10px;margin-top:6px">
-      <button id="impSteam" class="btn" style="text-align:left"><b>Import from Steam</b><br><span class="hint">Fetches a Steam profile's library, marks Started from playtime and 100% from perfect achievements. Adds to your library &#8212; never overwrites your edits.</span></button>
+      <button id="impSteam" class="btn" style="text-align:left"><b>Import from Steam</b><br><span class="hint">Fetches a Steam profile's library and marks Started from playtime. Adds to your library &#8212; never overwrites your edits.</span></button>
       <button id="impPaste" class="btn" style="text-align:left"><b>Paste from Steam</b><br><span class="hint">No setup: copy your Steam "All Games" page and paste it. Same safe merge.</span></button>
       <button id="impFile" class="btn" style="text-align:left"><b>Restore a backup file (JSON)</b><br><span class="hint">Replaces your whole library with the backup.</span></button>
     </div>
@@ -286,7 +286,7 @@ td[data-f],.chk{touch-action:manipulation}
     <div id="stUrlView">
       <label class="hint">Steam profile URL, vanity name, or SteamID64</label>
       <input id="stProfile" type="text" placeholder="https://steamcommunity.com/id/yourname" style="width:100%;margin-top:6px" autocomplete="off">
-      <p class="hint" style="margin-top:8px">The profile's <b>Game details</b> privacy must be set to Public. Played games are checked for 100% (perfect) achievements.</p>
+      <p class="hint" style="margin-top:8px">The profile's <b>Game details</b> privacy must be set to Public.</p>
       <p class="hint" id="stNoRelay" style="display:none;color:var(--hot-text)">The Steam relay isn't configured yet &#8212; use <b>Paste from Steam</b> instead.</p>
     </div>
     <div id="stPasteView" style="display:none">
@@ -309,7 +309,7 @@ td[data-f],.chk{touch-action:manipulation}
 <script>
 const SEED = [/*__SEED__*/];
 const LS_KEY = 'gamesLibrary.v1';
-const APP_VERSION = '1.12.0';
+const APP_VERSION = '1.13.0';
 const BK_KEY = LS_KEY + '.lastBackup';
 const DEFAULT_TAGS = ['RPG','FPS','RTS','MMORPG','Platformer','Adventure','Strategy','Racing','Fighting','Puzzle','Horror','Survival','Co-op'];
 const THEME_KEY = LS_KEY + '.theme';
@@ -695,27 +695,14 @@ async function steamFetchAll(profileInput, status){
   if(!sid){ let v=t; const mm=t.match(/\/id\/([^\/?#]+)/); if(mm) v=mm[1]; status('Resolving profile…'); const d=await j('/resolve?vanity='+encodeURIComponent(v)); if(!d.steamid) throw new Error('Could not resolve that profile'); sid=d.steamid; }
   status('Fetching library…');
   const og=await j('/owned?steamid='+sid);
-  const list=(og.games||[]).map(g=>({ appid:g.appid, title:cleanSteamTitle(g.name||('App '+g.appid)), hours:Math.round((g.playtime_forever||0)/6)/10, played:(g.playtime_forever||0)>0, ach:null, total:null, saw:true }));
+  // Library + playtime only — one request. Achievement/100% detection was
+  // removed in v1.13.0: it cost ~1 call per game and Steam's per-game answers
+  // proved unreliable enough that games could import silently mis-flagged.
+  // 100% stays a manual field.
+  const list=(og.games||[]).map(g=>({ appid:g.appid, title:cleanSteamTitle(g.name||('App '+g.appid)), hours:Math.round((g.playtime_forever||0)/6)/10, played:(g.playtime_forever||0)>0, saw:true }));
   if(!list.length) throw new Error("No games returned — is the profile's Game details privacy set to Public?");
-  // check achievements on EVERY game, not just played ones: rounding once hid
-  // a minutes-long game, and Steam can report 0 playtime for old/shared games
-  // that are still 100%-completed
-  const queue=list.slice(); let done=0, failed=0;
-  // Steam intermittently drops calls under parallel load; retry each check up
-  // to 3 times with backoff, and COUNT what still fails so the preview can be
-  // honest about it instead of silently importing a game as "no achievements"
-  async function w(){ while(queue.length){ const g=queue.shift(); let ok=false;
-    for(let t=0;t<3 && !ok;t++){
-      try{ const a=await j('/achievements?steamid='+sid+'&appid='+g.appid); if(a){ if(a.total>0){ g.ach=a.achieved; g.total=a.total; } ok=true; } }
-      catch(e){ if(t<2) await new Promise(r=>setTimeout(r,400*(t+1))); }
-    }
-    if(!ok) failed++;
-    done++; if(done%5===0||!queue.length) status('Checking achievements… '+done+'/'+list.length); } }
-  await Promise.all([w(),w(),w(),w(),w(),w()]);
-  list.failedChecks=failed;
   return list;
 }
-function steamIsPerfect(s){ return s.total!=null && s.total>0 && s.ach===s.total; }
 /* only a blank field or an explicit "No" is fair game to upgrade — 'N/A' is a
    deliberate user choice (see the ynList datalist) and must survive imports */
 function upgradable(v){ return !v || /^\s*no\s*$/i.test(v); }
@@ -723,32 +710,27 @@ function steamPreview(list){
   // mirrors steamMerge's incremental dedup so a title repeated within `list`
   // itself is counted as new only once, matching what Apply will actually do
   const seen=new Set(games.map(g=>normTitle(g.title)));
-  let match=0,nw=0,perfect=0;
+  let match=0,nw=0;
   list.forEach(s=>{
-    if(steamIsPerfect(s)) perfect++;
     const k=normTitle(s.title);
     if(seen.has(k)) match++; else { nw++; seen.add(k); }
   });
-  return {match:match, nw:nw, perfect:perfect};
+  return {match:match, nw:nw};
 }
 function steamMerge(list){
   const byNorm=new Map(); games.forEach(g=>{ if(!byNorm.has(normTitle(g.title))) byNorm.set(normTitle(g.title), g); });
-  const res={matched:0, added:0, marked:0};
+  const res={matched:0, added:0};
   list.forEach(s=>{
-    const perfect=steamIsPerfect(s);
     const sp=(s.played!==undefined)?s.played:(s.hours>0); // fetch path knows exact minutes; paste path falls back to hours
     const ex=byNorm.get(normTitle(s.title));
     if(ex){
       res.matched++;
       if(platsOf(ex).indexOf('PC')<0) ex.platforms=rankPlats(platsOf(ex).concat(['PC']));
-      if(ex.mp!=='only'){
-        if(sp && upgradable(ex.started)) ex.started='Yes';
-        if(perfect){ if(upgradable(ex.done100)){ ex.done100='Yes'; res.marked++; } if(upgradable(ex.finished)) ex.finished='Yes'; if(upgradable(ex.started)) ex.started='Yes'; }
-      }
+      if(ex.mp!=='only' && sp && upgradable(ex.started)) ex.started='Yes';
     } else {
-      const ng={ id:uid(), title:s.title, platforms:['PC'], group:'', ord:0, tags:[], mp:'', finished:perfect?'Yes':'', started:(sp||perfect)?'Yes':'', done100:perfect?'Yes':'', replayable:'', rating:null, comments:'' };
+      const ng={ id:uid(), title:s.title, platforms:['PC'], group:'', ord:0, tags:[], mp:'', finished:'', started:sp?'Yes':'', done100:'', replayable:'', rating:null, comments:'' };
       games.push(ng); byNorm.set(normTitle(ng.title), ng);
-      res.added++; if(perfect) res.marked++;
+      res.added++;
     }
   });
   return res;
@@ -781,8 +763,7 @@ function showSteamPreview(list, mySession){
   f('stStatus').textContent='';
   const pv=f('stPreview');
   pv.style.display='';
-  pv.innerHTML='<b>'+list.length+'</b> games found &#8212; <b>'+p.match+'</b> already in your library (will be updated, never overwritten), <b>'+p.nw+'</b> new (added as PC), <b>'+p.perfect+'</b> perfect (marked 100%).'
-    +((list.failedChecks>0)?'<div style="margin-top:6px;color:var(--hot-text)">&#9888; '+list.failedChecks+' game'+(list.failedChecks===1?'':'s')+' couldn\'t be achievement-checked (Steam hiccup). Applying is still safe &#8212; run the import again later to fill those in.</div>':'')
+  pv.innerHTML='<b>'+list.length+'</b> games found &#8212; <b>'+p.match+'</b> already in your library (will be updated, never overwritten), <b>'+p.nw+'</b> new (added as PC).'
     +'<div class="hint" style="margin-top:6px">Ratings, comments, groups and tags on existing games are untouched. Nothing is saved until you click Apply.</div>';
   f('stGo').style.display='none'; f('stApply').style.display='';
 }
@@ -806,7 +787,7 @@ function steamApply(){
   if(!stResults) return;
   const r=steamMerge(stResults);
   save(); buildPlatformOptions(); render(); closeSteamModal();
-  alert('Steam import done: '+r.matched+' games updated, '+r.added+' added, '+r.marked+' marked 100%.');
+  alert('Steam import done: '+r.matched+' games updated, '+r.added+' added.');
 }
 
 /* ---- group tagging (tag every game in a group at once) ---- */
