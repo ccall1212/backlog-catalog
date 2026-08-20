@@ -4,7 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Backlog Catalog</title>
-<meta name="app-version" content="1.4.0">
+<meta name="app-version" content="1.5.0">
+<meta name="theme-color" content="#0f1420">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%236366f1'/><text x='32' y='43' font-size='28' text-anchor='middle' fill='white' font-family='Segoe UI,Arial,sans-serif' font-weight='700'>BC</text></svg>">
 <style>
 :root{
   --bg:#0f1420;--panel:#171d2b;--panel2:#1e2535;--side:#0c111c;--line:#2a3346;--text:#e7ebf3;--muted:#8b95a9;
@@ -13,7 +15,7 @@
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;font-family:system-ui,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);font-size:14px;overflow:hidden}
-.layout{display:flex;height:100vh}
+.layout{display:flex;height:100vh;height:100dvh}
 .sidebar{width:222px;flex-shrink:0;background:var(--side);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow-y:auto}
 .sidebar .brand{font-size:18px;font-weight:700;padding:18px 16px 12px}
 .nav{display:flex;flex-direction:column;padding:4px 8px;gap:2px}
@@ -41,14 +43,15 @@ input:disabled{cursor:not-allowed}
 #search{min-width:190px;flex:0 1 300px}
 .sortwrap label{color:var(--muted);display:flex;gap:6px;align-items:center;font-size:13px}
 .btn{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px 12px;cursor:pointer;font-size:13px}
+.btn,.nav-item,.pchip,.chk{transition:background-color .15s,border-color .15s,color .15s}
 .btn:hover{border-color:var(--accent)}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
 .btn.primary:hover{background:var(--accent2)}
 main{flex:1;min-height:0;overflow:auto;padding:6px 22px 24px}
-.tablewrap{border:1px solid var(--line);border-radius:10px}
+.tablewrap{border:1px solid var(--line);border-radius:10px;overflow-x:auto;box-shadow:0 2px 10px rgba(0,0,0,.18)}
 table{width:100%;border-collapse:collapse;min-width:1040px}
 table.grouped{min-width:1160px}
-th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
 th{position:sticky;top:0;background:var(--panel);color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.03em;z-index:2}
 tbody tr:hover{background:var(--panel)}
 td.center,th.center{text-align:center}
@@ -85,13 +88,13 @@ tr.dto td{box-shadow:inset 0 2px 0 var(--accent)}
 .grp-head:first-child{margin-top:4px}
 .grp-head .count{margin-left:auto;background:var(--panel2);color:var(--muted);border-radius:999px;padding:1px 10px;font-size:12px;font-weight:600}
 .cards{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0 18px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 20px;min-width:124px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 20px;min-width:124px;box-shadow:0 2px 10px rgba(0,0,0,.18)}
 .cval{font-size:26px;font-weight:700}.clab{color:var(--muted);font-size:12px;margin-top:2px}
 h3{color:var(--muted);font-weight:600;margin:18px 0 8px}
 footer{flex-shrink:0;color:var(--muted);font-size:12px;padding:12px 22px;border-top:1px solid var(--line)}
 .modal{position:fixed;inset:0;background:rgba(4,7,14,.62);display:none;align-items:center;justify-content:center;padding:20px;z-index:50}
 .modal.show{display:flex}
-.dialog{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;width:100%;max-width:560px;max-height:90vh;overflow:auto}
+.dialog{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;width:100%;max-width:560px;max-height:90vh;overflow:auto;box-shadow:0 12px 40px rgba(0,0,0,.4)}
 .dialog h2{margin:0 0 16px;font-size:18px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .grid label{display:flex;flex-direction:column;gap:5px;color:var(--muted);font-size:12px}
@@ -116,13 +119,19 @@ input.err{border-color:var(--red)}
 .mtag button{background:none;border:none;color:#fff;cursor:pointer;font-size:12px;padding:0;line-height:1}
 .cellEdit{width:100%;min-width:56px;padding:4px 6px;font-size:13px}
 td[data-f]{cursor:cell}
+td[data-f],.chk{touch-action:manipulation}
 @media(max-width:700px){
-  .layout{flex-direction:column;height:100vh}
+  .layout{flex-direction:column;height:100vh;height:100dvh}
   .sidebar{width:auto;border-right:none;border-bottom:1px solid var(--line);overflow:visible}
   .nav{flex-flow:row wrap}.nav-sub{flex-flow:row wrap}
   .nav-item{width:auto}.nav-item.sub{padding-left:12px}
   .side-foot{display:none}
   .grid{grid-template-columns:1fr}
+  input,select,textarea,.cellEdit{font-size:16px}
+  table{min-width:620px}
+  table.grouped{min-width:740px}
+  .xtra{display:none}
+  td.title{position:sticky;left:0;background:var(--panel);z-index:1;max-width:170px}
 }
 </style>
 </head>
@@ -233,7 +242,7 @@ td[data-f]{cursor:cell}
 <script>
 const SEED = [/*__SEED__*/];
 const LS_KEY = 'gamesLibrary.v1';
-const APP_VERSION = '1.4.0';
+const APP_VERSION = '1.5.0';
 const BK_KEY = LS_KEY + '.lastBackup';
 const DEFAULT_TAGS = ['RPG','FPS','RTS','MMORPG','Platformer','Adventure','Strategy','Racing','Fighting','Puzzle','Horror','Survival'];
 const PLATFORMS = ['PC','Xbox','PlayStation','Nintendo'];
@@ -257,6 +266,7 @@ const GROUP_RULES = [
 ];
 function detectGroup(title){ const t=title||''; for(var i=0;i<GROUP_RULES.length;i++){ if(GROUP_RULES[i][0].test(t)) return GROUP_RULES[i][1]; } return ''; }
 
+const TOUCH = !!(window.matchMedia && matchMedia('(pointer:coarse)').matches);
 function uid(){ try{ if(window.crypto&&crypto.randomUUID) return crypto.randomUUID(); }catch(e){} return 'id-'+Date.now()+'-'+Math.floor(Math.random()*1e9); }
 function yes(v){ return /^\s*yes/i.test(v||''); }
 function num(v){ if(v===null||v===undefined||v==='') return null; const n=Number(v); return isNaN(n)?null:n; }
@@ -359,21 +369,22 @@ function toggleCell(g,field){
   return '<button class="chk'+(on?' on':'')+'" data-act="tog" data-field="'+field+'" data-id="'+g.id+'" title="'+tip+'">'+(on?'&#10003;':'&#8211;')+'</button>';
 }
 function statusCell(g,field){ if(isMp(g)) return '<span class="mp-no" title="Multiplayer only — N/A">&#8856;</span>'; return toggleCell(g,field); }
-function gameCells(g){
+function gameCells(g, inGroup){
+  const arrows = (inGroup && TOUCH) ? '<button class="icon" data-act="up" data-id="'+g.id+'" title="Move up">&#9650;</button><button class="icon" data-act="down" data-id="'+g.id+'" title="Move down">&#9660;</button>' : '';
   return '<td class="title" data-f="title" title="Double-click to edit">'+esc(g.title)+(isMp(g)?' <span class="mp-tag">MP</span>':'')+((g.tags&&g.tags.length)?'<div class="tagline">'+g.tags.map(t=>'<span class="tagb">'+esc(t)+'</span>').join('')+'</div>':'')+'</td>'
     +'<td class="plat" data-f="plat" title="Double-click to open editor">'+badges(g)+'</td>'
     +'<td class="center">'+statusCell(g,'finished')+'</td>'
     +'<td class="center">'+statusCell(g,'started')+'</td>'
-    +'<td class="center" data-f="want100" title="Double-click to edit">'+esc(g.want100||'')+'</td>'
-    +'<td class="center" data-f="done100" title="Double-click to edit">'+esc(g.done100||'')+'</td>'
-    +'<td class="center" data-f="replayable" title="Double-click to edit">'+esc(g.replayable||'')+'</td>'
+    +'<td class="center xtra" data-f="want100" title="Double-click to edit">'+esc(g.want100||'')+'</td>'
+    +'<td class="center xtra" data-f="done100" title="Double-click to edit">'+esc(g.done100||'')+'</td>'
+    +'<td class="center xtra" data-f="replayable" title="Double-click to edit">'+esc(g.replayable||'')+'</td>'
     +'<td class="center" data-f="want" title="Double-click to edit">'+rateCell(wantNum(g))+'</td>'
     +'<td class="center" data-f="final" title="Double-click to edit">'+rateCell(finalNum(g))+'</td>'
-    +'<td class="comments" data-f="comments" title="Double-click to edit">'+esc(g.comments||'')+'</td>'
-    +'<td class="actions"><button class="icon" data-act="edit" data-id="'+g.id+'" title="Edit">&#9998;</button>'
+    +'<td class="comments xtra" data-f="comments" title="Double-click to edit">'+esc(g.comments||'')+'</td>'
+    +'<td class="actions">'+arrows+'<button class="icon" data-act="edit" data-id="'+g.id+'" title="Edit">&#9998;</button>'
     +'<button class="icon danger" data-act="del" data-id="'+g.id+'" title="Delete">&#128465;</button></td>';
 }
-const HEAD_MAIN = '<th>Game</th><th>Platform</th><th class="center">Finished</th><th class="center">Started/Played</th><th class="center">Want 100%</th><th class="center">100%?</th><th class="center">Replay</th><th class="center">Want to Play</th><th class="center">Final Rating</th><th>Comments</th><th></th>';
+const HEAD_MAIN = '<th>Game</th><th>Platform</th><th class="center">Finished</th><th class="center">Started/Played</th><th class="center xtra">Want 100%</th><th class="center xtra">100%?</th><th class="center xtra">Replay</th><th class="center">Want to Play</th><th class="center">Final Rating</th><th class="xtra">Comments</th><th></th>';
 function tableHtml(list){
   if(!list.length) return '<div class="empty">Nothing here yet. Click <b>+ Add game</b> to start.</div>';
   return '<div class="tablewrap"><table><thead><tr>'+HEAD_MAIN+'</tr></thead><tbody>'
@@ -386,7 +397,7 @@ function groupTableHtml(list){
     const grp=(list[i].group||'').trim();
     if(grp){
       let j=i; while(j<list.length && (list[j].group||'').trim()===grp) j++;
-      for(let k=i;k<j;k++){ const lead=(k===i)?'<td class="grpcell g" rowspan="'+(j-i)+'">'+esc(grp)+'<span class="grpbtns"><button class="gtag" data-taggrp="'+esc(grp)+'" title="Tag every game in this group">&#127991; tag</button><button class="gdel" data-delgrp="'+esc(grp)+'" title="Delete group">&#215;</button></span></td>':''; body+='<tr draggable="true" data-grp="'+esc(grp)+'" data-id="'+list[k].id+'">'+lead+gameCells(list[k])+'</tr>'; }
+      for(let k=i;k<j;k++){ const lead=(k===i)?'<td class="grpcell g" rowspan="'+(j-i)+'">'+esc(grp)+'<span class="grpbtns"><button class="gtag" data-taggrp="'+esc(grp)+'" title="Tag every game in this group">&#127991; tag</button><button class="gdel" data-delgrp="'+esc(grp)+'" title="Delete group">&#215;</button></span></td>':''; body+='<tr draggable="true" data-grp="'+esc(grp)+'" data-id="'+list[k].id+'">'+lead+gameCells(list[k], true)+'</tr>'; }
       i=j;
     } else { body+='<tr data-id="'+list[i].id+'"><td class="grpcell"></td>'+gameCells(list[i])+'</tr>'; i++; }
   }
@@ -644,14 +655,30 @@ function onDragStart(e){ if(e.target.closest && e.target.closest('.cellEdit')){ 
 function onDragOver(e){ if(dragId==null) return; const tr=e.target.closest('tr[data-grp]'); if(tr && tr.dataset.grp===dragGrp){ e.preventDefault(); clearDto(); if(tr.dataset.id!==dragId) tr.classList.add('dto'); } }
 function onDrop(e){ if(dragId==null) return; const tr=e.target.closest('tr[data-grp]'); clearDto(); if(!tr||tr.dataset.grp!==dragGrp){ dragId=null; return; } e.preventDefault(); const targetId=tr.dataset.id; if(targetId===dragId){ dragId=null; return; } const members=games.filter(g=>(g.group||'').trim()===dragGrp).slice().sort((a,b)=>((a.ord||0)-(b.ord||0))||(a.title||'').localeCompare(b.title||'')); const ids=members.map(g=>g.id); const from=ids.indexOf(dragId), to=ids.indexOf(targetId); if(from<0||to<0){ dragId=null; return; } ids.splice(to,0,ids.splice(from,1)[0]); ids.forEach((id,ix)=>{ const g=games.find(x=>x.id===id); if(g) g.ord=ix; }); dragId=null; dragGrp=null; save(); render(); }
 function onDragEnd(){ dragId=null; dragGrp=null; clearDto(); }
+function moveInGroup(id,dir){
+  const g=games.find(x=>x.id===id); if(!g) return;
+  const grpName=(g.group||'').trim(); if(!grpName) return;
+  const members=games.filter(x=>(x.group||'').trim()===grpName).slice().sort((a,b)=>((a.ord||0)-(b.ord||0))||(a.title||'').localeCompare(b.title||''));
+  const i=members.findIndex(x=>x.id===id); const j=i+dir;
+  if(i<0||j<0||j>=members.length) return;
+  const t=members[i]; members[i]=members[j]; members[j]=t;
+  members.forEach((m,ix)=>{ m.ord=ix; });
+  save(); render();
+}
 function onMainClick(e){
   const tg=e.target.closest('[data-taggrp]'); if(tg){ openTagGroupModal(tg.dataset.taggrp); return; }
   const dg=e.target.closest('[data-delgrp]'); if(dg){ const name=dg.dataset.delgrp; if(confirm('Delete the "'+name+'" group? The games stay in your library — they just leave the group.')){ games.forEach(g=>{ if((g.group||'').trim()===name) g.group=''; }); save(); render(); } return; }
-  const btn=e.target.closest('button[data-act]'); if(!btn) return;
-  const act=btn.dataset.act;
-  if(act==='tog') toggleField(btn.dataset.id, btn.dataset.field);
-  else if(act==='edit') openModal(btn.dataset.id);
-  else if(act==='del') del(btn.dataset.id);
+  const btn=e.target.closest('button[data-act]');
+  if(btn){
+    const act=btn.dataset.act;
+    if(act==='tog') toggleField(btn.dataset.id, btn.dataset.field);
+    else if(act==='edit') openModal(btn.dataset.id);
+    else if(act==='del') del(btn.dataset.id);
+    else if(act==='up') moveInGroup(btn.dataset.id,-1);
+    else if(act==='down') moveInGroup(btn.dataset.id,1);
+    return;
+  }
+  if(TOUCH){ const td=e.target.closest('td[data-f]'); if(td && !td.querySelector('input,select')){ onCellDblClick(e); } }
 }
 function bind(){
   document.querySelectorAll('.nav-item').forEach(n=>n.addEventListener('click',()=>{ view=n.dataset.view; render(); }));
@@ -697,6 +724,7 @@ function bind(){
   f('tgCurrent').addEventListener('click',e=>{ const b=e.target.closest('[data-tgrm]'); if(b) tagGroupRemove(b.dataset.tgrm); });
   document.getElementById('tagGroupModal').addEventListener('click',e=>{ if(e.target.id==='tagGroupModal') closeTagGroupModal(); });
   document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeModal(); closeGroupModal(); closeTagGroupModal(); } });
+  if(TOUCH){ const ft=document.querySelector('footer'); if(ft) ft.innerHTML='Tip: <b>tap</b> a cell to edit it in place; tap the &#8211; under Finished/Started to toggle. Use the &#9650;&#9660; arrows to reorder grouped games. Auto-saves here; <b>Export JSON</b> to back up.'; }
 }
 buildPlatformOptions(); bind(); render();
 </script>
