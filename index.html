@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Backlog Catalog</title>
-<meta name="app-version" content="1.10.1">
+<meta name="app-version" content="1.11.0">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0f1420">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%236366f1'/><text x='32' y='43' font-size='28' text-anchor='middle' fill='white' font-family='Segoe UI,Arial,sans-serif' font-weight='700'>BC</text></svg>">
@@ -271,13 +271,48 @@ td[data-f],.chk{touch-action:manipulation}
   </div>
 </div>
 
+<div id="importModal" class="modal">
+  <div class="dialog" style="max-width:500px">
+    <h2>Import</h2>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:6px">
+      <button id="impSteam" class="btn" style="text-align:left"><b>Import from Steam</b><br><span class="hint">Fetches a Steam profile's library, marks Started from playtime and 100% from perfect achievements. Adds to your library &#8212; never overwrites your edits.</span></button>
+      <button id="impPaste" class="btn" style="text-align:left"><b>Paste from Steam</b><br><span class="hint">No setup: copy your Steam "All Games" page and paste it. Same safe merge.</span></button>
+      <button id="impFile" class="btn" style="text-align:left"><b>Restore a backup file (JSON)</b><br><span class="hint">Replaces your whole library with the backup.</span></button>
+    </div>
+    <div class="dlg-actions"><button id="impCancel" class="btn">Cancel</button></div>
+  </div>
+</div>
+
+<div id="steamModal" class="modal">
+  <div class="dialog" style="max-width:560px">
+    <h2 id="stHdr">Import from Steam</h2>
+    <div id="stUrlView">
+      <label class="hint">Steam profile URL, vanity name, or SteamID64</label>
+      <input id="stProfile" type="text" placeholder="https://steamcommunity.com/id/yourname" style="width:100%;margin-top:6px" autocomplete="off">
+      <p class="hint" style="margin-top:8px">The profile's <b>Game details</b> privacy must be set to Public. Played games are checked for 100% (perfect) achievements.</p>
+      <p class="hint" id="stNoRelay" style="display:none;color:var(--hot-text)">The Steam relay isn't configured yet &#8212; use <b>Paste from Steam</b> instead.</p>
+    </div>
+    <div id="stPasteView" style="display:none">
+      <label class="hint">On Steam, open your <b>All Games</b> page, scroll to the bottom so every game loads, select the list (Ctrl+A), copy, and paste it here.</label>
+      <textarea id="stPaste" rows="9" style="width:100%;margin-top:6px" placeholder="Dead by Daylight&#10;Dead by Daylight&#10;TOTAL PLAYED&#10;701.9 hours&#10;LAST PLAYED&#10;Jun 15&#10;ACHIEVEMENTS&#10;147/303&#10;..."></textarea>
+    </div>
+    <div id="stStatus" class="hint" style="margin-top:10px"></div>
+    <div id="stPreview" style="display:none;margin-top:8px"></div>
+    <div class="dlg-actions">
+      <button id="stCancel" class="btn">Cancel</button>
+      <button id="stGo" class="btn primary">Fetch games</button>
+      <button id="stApply" class="btn primary" style="display:none">Apply</button>
+    </div>
+  </div>
+</div>
+
 <datalist id="ynList"><option value="Yes"></option><option value="No"></option><option value="N/A"></option></datalist>
 <input id="importFile" type="file" accept="application/json,.json" hidden>
 
 <script>
 const SEED = [];
 const LS_KEY = 'backlogCatalog.starter.v1';
-const APP_VERSION = '1.10.1';
+const APP_VERSION = '1.11.0';
 const BK_KEY = LS_KEY + '.lastBackup';
 const DEFAULT_TAGS = ['RPG','FPS','RTS','MMORPG','Platformer','Adventure','Strategy','Racing','Fighting','Puzzle','Horror','Survival','Co-op'];
 const THEME_KEY = LS_KEY + '.theme';
@@ -627,6 +662,139 @@ function importJSON(e){
   reader.onload=()=>{ try{ const parsed=JSON.parse(reader.result); const a=Array.isArray(parsed)?parsed:((parsed&&Array.isArray(parsed.games))?parsed.games:null); if(!a) throw new Error('File is not a games list'); if(confirm('Import '+a.length+' games? This replaces your current '+games.length+'.')){ if(parsed&&!Array.isArray(parsed)&&parsed.groupColors&&typeof parsed.groupColors==='object'){ groupColors={}; Object.keys(parsed.groupColors).forEach(k=>{ const v=parsed.groupColors[k]; if(typeof v==='string'&&/^#[0-9a-fA-F]{6}$/.test(v)) groupColors[k]=v; }); saveGroupColors(); } games=prep(a.map(x=>Object.assign({title:'',group:'',ord:0,tags:[],mp:'',finished:'',want100:'',done100:'',replayable:'',comments:''},x)), true); save(); view='all'; buildPlatformOptions(); render(); } }catch(err){ alert('Could not import: '+err.message); } e.target.value=''; };
   reader.readAsText(file);
 }
+/* ---- Steam import (relay fetch or page paste; ALWAYS a non-destructive merge) ---- */
+const STEAM_PROXY = ''; // set to the Cloudflare Worker URL once deployed, e.g. 'https://backlog-steam.xxx.workers.dev'
+function steamRelayBase(){ let v=''; try{ v=localStorage.getItem(LS_KEY+'.steamRelay')||''; }catch(e){} return (v||STEAM_PROXY||'').replace(/\/+$/,''); }
+function normTitle(t){ return String(t||'').toLowerCase().replace(/[™®©]/g,'').replace(/[\-–—_:]/g,' ').replace(/[^a-z0-9 ]/g,'').replace(/\s+/g,' ').trim(); }
+function cleanSteamTitle(t){ return String(t||'').replace(/[™®©]/g,'').replace(/\s+/g,' ').trim(); }
+function parseSteamPaste(text){
+  const LABELS=/^(TOTAL PLAYED|LAST PLAYED|ACHIEVEMENTS|My Game Stats|My Game Content|DOWNLOAD|INSTALL|PLAY|Find a game|Playtime|Name|Achievement Completion|Recently Played.*|All Games.*|Perfect Games.*|Followed.*|Reviews.*|Wishlist|REMOTE DOWNLOAD TO:.*)$/i;
+  const lines=text.split(/\r?\n/).map(s=>s.trim()).filter(s=>s.length);
+  const out=[]; let cur=null; let expect='';
+  for(let i=0;i<lines.length;i++){
+    const ln=lines[i];
+    if(/^TOTAL PLAYED$/i.test(ln)){ expect='hours'; continue; }
+    if(/^LAST PLAYED$/i.test(ln)){ expect='skip'; continue; }
+    if(/^ACHIEVEMENTS$/i.test(ln)){ expect='ach'; continue; }
+    if(expect==='hours'){ expect=''; if(cur){ const m=ln.match(/([\d.,]+)\s*(?:hours?|hrs?)/i); if(m){ cur.hours=parseFloat(m[1].replace(/,/g,''))||0; cur.saw=true; continue; } } }
+    else if(expect==='ach'){ expect=''; if(cur){ const m=ln.match(/^([\d,]+)\s*\/\s*([\d,]+)$/); if(m){ cur.ach=parseInt(m[1].replace(/,/g,''),10); cur.total=parseInt(m[2].replace(/,/g,''),10); cur.saw=true; continue; } } }
+    else if(expect==='skip'){ expect=''; continue; }
+    if(LABELS.test(ln)) continue;
+    if(/^[\d.,]+\s*(GB|MB|KB)$/i.test(ln)) continue;
+    if(cur && normTitle(cur.title)===normTitle(ln)) continue; // Steam repeats each title twice
+    cur={ title: cleanSteamTitle(ln), hours:0, ach:null, total:null, saw:false };
+    out.push(cur);
+  }
+  return out.filter(g=>g.title && g.saw); // only rows that carried real game data survive
+}
+async function steamFetchAll(profileInput, status){
+  const base=steamRelayBase();
+  if(!base) throw new Error('No Steam relay configured');
+  async function j(path){ const r=await fetch(base+path); const d=await r.json().catch(()=>null); if(!r.ok||!d||d.error) throw new Error((d&&d.error)||('relay error '+r.status)); return d; }
+  const t=profileInput.trim(); let sid='';
+  let m=t.match(/\/profiles\/(\d{17})/); if(m) sid=m[1];
+  if(!sid && /^\d{17}$/.test(t)) sid=t;
+  if(!sid){ let v=t; const mm=t.match(/\/id\/([^\/?#]+)/); if(mm) v=mm[1]; status('Resolving profile…'); const d=await j('/resolve?vanity='+encodeURIComponent(v)); if(!d.steamid) throw new Error('Could not resolve that profile'); sid=d.steamid; }
+  status('Fetching library…');
+  const og=await j('/owned?steamid='+sid);
+  const list=(og.games||[]).map(g=>({ appid:g.appid, title:cleanSteamTitle(g.name||('App '+g.appid)), hours:Math.round((g.playtime_forever||0)/6)/10, ach:null, total:null, saw:true }));
+  if(!list.length) throw new Error("No games returned — is the profile's Game details privacy set to Public?");
+  const played=list.filter(g=>g.hours>0), queue=played.slice(); let done=0;
+  async function w(){ while(queue.length){ const g=queue.shift(); try{ const a=await j('/achievements?steamid='+sid+'&appid='+g.appid); if(a && a.total>0){ g.ach=a.achieved; g.total=a.total; } }catch(e){} done++; if(done%5===0||!queue.length) status('Checking achievements… '+done+'/'+played.length); } }
+  await Promise.all([w(),w(),w(),w(),w(),w()]);
+  return list;
+}
+function steamIsPerfect(s){ return s.total!=null && s.total>0 && s.ach===s.total; }
+/* only a blank field or an explicit "No" is fair game to upgrade — 'N/A' is a
+   deliberate user choice (see the ynList datalist) and must survive imports */
+function upgradable(v){ return !v || /^\s*no\s*$/i.test(v); }
+function steamPreview(list){
+  // mirrors steamMerge's incremental dedup so a title repeated within `list`
+  // itself is counted as new only once, matching what Apply will actually do
+  const seen=new Set(games.map(g=>normTitle(g.title)));
+  let match=0,nw=0,perfect=0;
+  list.forEach(s=>{
+    if(steamIsPerfect(s)) perfect++;
+    const k=normTitle(s.title);
+    if(seen.has(k)) match++; else { nw++; seen.add(k); }
+  });
+  return {match:match, nw:nw, perfect:perfect};
+}
+function steamMerge(list){
+  const byNorm=new Map(); games.forEach(g=>{ if(!byNorm.has(normTitle(g.title))) byNorm.set(normTitle(g.title), g); });
+  const res={matched:0, added:0, marked:0};
+  list.forEach(s=>{
+    const perfect=steamIsPerfect(s);
+    const ex=byNorm.get(normTitle(s.title));
+    if(ex){
+      res.matched++;
+      if(platsOf(ex).indexOf('PC')<0) ex.platforms=rankPlats(platsOf(ex).concat(['PC']));
+      if(ex.mp!=='only'){
+        if(s.hours>0 && upgradable(ex.started)) ex.started='Yes';
+        if(perfect){ if(upgradable(ex.done100)){ ex.done100='Yes'; res.marked++; } if(upgradable(ex.finished)) ex.finished='Yes'; if(upgradable(ex.started)) ex.started='Yes'; }
+      }
+    } else {
+      const ng={ id:uid(), title:s.title, platforms:['PC'], group:'', ord:0, tags:[], mp:'', finished:perfect?'Yes':'', started:(s.hours>0||perfect)?'Yes':'', want100:'', done100:perfect?'Yes':'', replayable:'', want:null, final:null, comments:'' };
+      games.push(ng); byNorm.set(normTitle(ng.title), ng);
+      res.added++; if(perfect) res.marked++;
+    }
+  });
+  return res;
+}
+let stMode='url', stResults=null, stSession=0;
+function openSteamModal(mode){
+  stMode=mode; stResults=null; stSession++; // invalidate any fetch still in flight from a prior open
+  document.getElementById('importModal').classList.remove('show');
+  f('stHdr').textContent = mode==='url' ? 'Import from Steam' : 'Paste from Steam';
+  f('stUrlView').style.display = mode==='url'?'':'none';
+  f('stPasteView').style.display = mode==='paste'?'':'none';
+  // the relay only answers its own hosted origin (CORS) — a local file:// copy
+  // can't use the URL fetch even with a relay configured; steer to Paste instead
+  const isFile=(location.protocol==='file:');
+  const urlBlocked = mode==='url' && (!steamRelayBase() || isFile);
+  f('stNoRelay').style.display = urlBlocked?'':'none';
+  f('stNoRelay').textContent = isFile
+    ? "Import from Steam needs the hosted site (it can't reach the relay from a local file) — use Paste from Steam instead, or do this on the live site and Export/Import the result."
+    : "The Steam relay isn't configured yet — use Paste from Steam instead.";
+  f('stGo').style.display=''; f('stGo').disabled=urlBlocked; f('stGo').textContent = mode==='url'?'Fetch games':'Read paste';
+  f('stApply').style.display='none'; f('stStatus').textContent=''; f('stPreview').style.display='none'; f('stPreview').innerHTML='';
+  document.getElementById('steamModal').classList.add('show');
+  (mode==='url'?f('stProfile'):f('stPaste')).focus();
+}
+function closeSteamModal(){ document.getElementById('steamModal').classList.remove('show'); stResults=null; stSession++; }
+function showSteamPreview(list, mySession){
+  if(mySession!==undefined && mySession!==stSession) return; // modal was closed/reopened while this fetch was in flight
+  stResults=list;
+  const p=steamPreview(list);
+  f('stStatus').textContent='';
+  const pv=f('stPreview');
+  pv.style.display='';
+  pv.innerHTML='<b>'+list.length+'</b> games found &#8212; <b>'+p.match+'</b> already in your library (will be updated, never overwritten), <b>'+p.nw+'</b> new (added as PC), <b>'+p.perfect+'</b> perfect (marked 100%).<div class="hint" style="margin-top:6px">Ratings, comments, groups and tags on existing games are untouched. Nothing is saved until you click Apply.</div>';
+  f('stGo').style.display='none'; f('stApply').style.display='';
+}
+async function steamGo(){
+  const mySession=stSession;
+  try{
+    if(stMode==='paste'){
+      const list=parseSteamPaste(f('stPaste').value||'');
+      if(!list.length){ f('stStatus').textContent='No games recognized in that paste — make sure you copied the games list itself.'; return; }
+      showSteamPreview(list, mySession);
+    } else {
+      const inp=f('stProfile').value||'';
+      if(!inp.trim()){ f('stStatus').textContent='Enter a profile URL, vanity name, or SteamID64.'; return; }
+      f('stGo').disabled=true;
+      const list=await steamFetchAll(inp, t=>{ if(mySession===stSession) f('stStatus').textContent=t; });
+      showSteamPreview(list, mySession);
+    }
+  }catch(e){ if(mySession===stSession){ f('stStatus').textContent='Failed: '+e.message; f('stGo').disabled=false; } }
+}
+function steamApply(){
+  if(!stResults) return;
+  const r=steamMerge(stResults);
+  save(); buildPlatformOptions(); render(); closeSteamModal();
+  alert('Steam import done: '+r.matched+' games updated, '+r.added+' added, '+r.marked+' marked 100%.');
+}
+
 /* ---- group tagging (tag every game in a group at once) ---- */
 let tgGroup='';
 function groupMembers(name){ return games.filter(g=>(g.group||'').trim()===name); }
@@ -753,7 +921,16 @@ function bind(){
   f('createGroupBtn').addEventListener('click',openGroupModal);
   f('exportJson').addEventListener('click',exportJSON);
   f('exportCsv').addEventListener('click',exportCSV);
-  f('importBtn').addEventListener('click',()=>f('importFile').click());
+  f('importBtn').addEventListener('click',()=>document.getElementById('importModal').classList.add('show'));
+  f('impCancel').addEventListener('click',()=>document.getElementById('importModal').classList.remove('show'));
+  document.getElementById('importModal').addEventListener('click',e=>{ if(e.target.id==='importModal') e.target.classList.remove('show'); });
+  f('impFile').addEventListener('click',()=>{ document.getElementById('importModal').classList.remove('show'); f('importFile').click(); });
+  f('impSteam').addEventListener('click',()=>openSteamModal('url'));
+  f('impPaste').addEventListener('click',()=>openSteamModal('paste'));
+  f('stCancel').addEventListener('click',closeSteamModal);
+  f('stGo').addEventListener('click',steamGo);
+  f('stApply').addEventListener('click',steamApply);
+  document.getElementById('steamModal').addEventListener('click',e=>{ if(e.target.id==='steamModal') closeSteamModal(); });
   f('importFile').addEventListener('change',importJSON);
   f('main').addEventListener('click',onMainClick);
   f('main').addEventListener('dblclick',onCellDblClick);
@@ -788,7 +965,7 @@ function bind(){
   f('tgColors').addEventListener('click',e=>{ const b=e.target.closest('[data-gc]'); if(!b||!tgGroup) return; const c=b.dataset.gc; if(c) groupColors[tgGroup]=c; else delete groupColors[tgGroup]; saveGroupColors(); renderTagGroup(); render(); });
   f('themeSel').addEventListener('change',e=>applyTheme(e.target.value));
   document.getElementById('tagGroupModal').addEventListener('click',e=>{ if(e.target.id==='tagGroupModal') closeTagGroupModal(); });
-  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeModal(); closeGroupModal(); closeTagGroupModal(); } });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeModal(); closeGroupModal(); closeTagGroupModal(); closeSteamModal(); document.getElementById('importModal').classList.remove('show'); } });
   if(TOUCH){ const ft=document.querySelector('footer'); if(ft) ft.innerHTML='Tip: <b>tap</b> a cell to edit it in place; tap the &#8211; under Finished/Started to toggle. Use the &#9650;&#9660; arrows to reorder grouped games. Auto-saves here; <b>Export JSON</b> to back up.'; }
 }
 (function(){ const sel=f('themeSel'); if(sel){ sel.innerHTML=THEMES.map(t=>'<option>'+t+'</option>').join(''); let tv='Midnight'; try{ tv=localStorage.getItem(THEME_KEY)||'Midnight'; }catch(e){} if(THEMES.indexOf(tv)<0) tv='Midnight'; sel.value=tv; applyTheme(tv); } })();
