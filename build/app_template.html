@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Backlog Catalog</title>
-<meta name="app-version" content="1.9.0">
+<meta name="app-version" content="1.10.0">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0f1420">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%236366f1'/><text x='32' y='43' font-size='28' text-anchor='middle' fill='white' font-family='Segoe UI,Arial,sans-serif' font-weight='700'>BC</text></svg>">
@@ -96,6 +96,7 @@ tr.dto td{box-shadow:inset 0 2px 0 var(--accent)}
 .na{color:var(--muted);text-decoration:line-through}
 .mp-no{color:var(--red);font-size:16px;line-height:1}
 .mp-tag{display:inline-block;font-size:10px;font-weight:700;color:var(--muted);border:1px solid var(--line);border-radius:5px;padding:0 5px;margin-left:6px;vertical-align:middle;letter-spacing:.05em}
+.mp-tag.mp-only{color:var(--red);border-color:var(--red)}
 .w100{font-size:11px;margin-left:5px;vertical-align:middle;cursor:help}
 .rwant{opacity:.7;font-style:italic}
 .chk{background:none;border:1px solid transparent;color:var(--muted);cursor:pointer;font-size:14px;font-weight:700;width:30px;height:26px;border-radius:7px;line-height:1}
@@ -221,7 +222,7 @@ td[data-f],.chk{touch-action:manipulation}
       <label class="full">Game<input id="mGame" type="text" autocomplete="off"></label>
       <label class="full">Platform(s) <span class="hint">click to select</span><div id="mPlats" class="chips"></div></label>
       <label>Group <span class="hint">optional</span><select id="mGroup"></select></label>
-      <label>Multiplayer only? <span class="hint">no story to finish</span><button type="button" id="mMpBtn" class="pchip">No</button></label>
+      <label>Multiplayer <span class="hint">optional</span><select id="mMpSel"><option value="">No multiplayer</option><option value="story">Multiplayer + Story</option><option value="only">Multiplayer only</option></select></label>
       <label class="full">Tags <span class="hint">genres</span><div id="mTags" style="margin-top:4px"></div><select id="mTagSel" style="margin-top:6px"></select></label>
       <label>Finished?<input id="mFin" type="text" list="ynList" autocomplete="off"></label>
       <label>Started / Played?<input id="mStarted" type="text" list="ynList" autocomplete="off"></label>
@@ -276,9 +277,9 @@ td[data-f],.chk{touch-action:manipulation}
 <script>
 const SEED = [/*__SEED__*/];
 const LS_KEY = 'gamesLibrary.v1';
-const APP_VERSION = '1.9.0';
+const APP_VERSION = '1.10.0';
 const BK_KEY = LS_KEY + '.lastBackup';
-const DEFAULT_TAGS = ['RPG','FPS','RTS','MMORPG','Platformer','Adventure','Strategy','Racing','Fighting','Puzzle','Horror','Survival','Multiplayer','Co-op'];
+const DEFAULT_TAGS = ['RPG','FPS','RTS','MMORPG','Platformer','Adventure','Strategy','Racing','Fighting','Puzzle','Horror','Survival','Co-op'];
 const THEME_KEY = LS_KEY + '.theme';
 const THEMES = ['Midnight','Light','Forest','Crimson','Slate'];
 const GC_KEY = LS_KEY + '.groupColors';
@@ -339,7 +340,7 @@ function mergeDupes(arr){
     const comments=[]; grp.forEach(g=>{ const c=(g.comments||'').trim(); if(c && comments.indexOf(c)<0) comments.push(c); });
     const tags=[]; grp.forEach(g=>{ (Array.isArray(g.tags)?g.tags:[]).forEach(t=>{ if(t && tags.indexOf(t)<0) tags.push(t); }); });
     const fin=anyYes('finished')?'Yes':firstNon('finished');
-    out.push({ id:grp[0].id||uid(), title:grp[0].title, platforms:rankPlats(plats), group:firstNon('group'), ord:(grp[0].ord||0), tags:tags, mp:grp.some(g=>g.mp===true), finished:fin,
+    out.push({ id:grp[0].id||uid(), title:grp[0].title, platforms:rankPlats(plats), group:firstNon('group'), ord:(grp[0].ord||0), tags:tags, mp:(grp.some(g=>g.mp==='only'||g.mp===true)?'only':(grp.some(g=>g.mp==='story')?'story':'')), finished:fin,
       started:(yes(fin)||anyYes('started'))?'Yes':'', want100:anyYes('want100')?'Yes':firstNon('want100'),
       done100:anyYes('done100')?'Yes':firstNon('done100'), replayable:anyYes('replayable')?'Yes':firstNon('replayable'),
       want:wants.length?Math.max.apply(null,wants):null, final:finals.length?Math.max.apply(null,finals):null, comments:comments.join(' / ') });
@@ -355,8 +356,10 @@ function prep(arr, doMerge){
     if(g.group===undefined||g.group===null) g.group='';
     if(typeof g.ord!=='number') g.ord=0;
     if(!Array.isArray(g.tags)) g.tags=[];
-    g.mp = (g.mp===true);
-    if(g.mp){ g.finished=''; g.started=''; }
+    /* mp is tri-state: '' | 'story' (has MP and a campaign) | 'only' (nothing to finish).
+       Legacy true === the old "multiplayer only" boolean. */
+    g.mp = (g.mp===true||g.mp==='only') ? 'only' : (g.mp==='story' ? 'story' : '');
+    if(g.mp==='only'){ g.finished=''; g.started=''; }
     else if(g.started===undefined||g.started===null) g.started=yes(g.finished)?'Yes':'';
     if(g.want===undefined && g.final===undefined && g.rating!==undefined){
       const rt=num(g.rating);
@@ -365,7 +368,7 @@ function prep(arr, doMerge){
     if(g.want===undefined) g.want=null;
     if(g.final===undefined) g.final=null;
     delete g.rating;
-    if(g.mp) g.final=null;
+    if(g.mp==='only') g.final=null;
     else if(g.final!=null && !yes(g.started) && !yes(g.finished)) g.started='Yes';
   });
   return doMerge ? mergeDupes(arr) : arr;
@@ -388,7 +391,8 @@ let gChecked = new Set();
 
 function isFinished(g){ return yes(g.finished); }
 function isStarted(g){ return yes(g.started); }
-function isMp(g){ return g.mp===true; }
+function isMp(g){ return g.mp==='only'; }
+function hasMp(g){ return g.mp==='only'||g.mp==='story'; }
 function wants100(g){ return yes(g.want100); }
 function done100(g){ return yes(g.done100); }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -429,7 +433,7 @@ function statusCell(g,field){ if(isMp(g)) return '<span class="mp-no" title="Mul
 function gameCells(g, inGroup){
   const arrows = (inGroup && TOUCH) ? '<button class="icon" data-act="up" data-id="'+g.id+'" title="Move up">&#9650;</button><button class="icon" data-act="down" data-id="'+g.id+'" title="Move down">&#9660;</button>' : '';
   const played = isStarted(g) || isFinished(g);
-  return '<td class="title" data-f="title" title="Double-click to edit">'+esc(g.title)+(isMp(g)?' <span class="mp-tag" title="Multiplayer only - no story to finish">MP</span>':'')+(wants100(g)?' <span class="w100" title="Want to 100% this one">&#127919;</span>':'')+((g.tags&&g.tags.length)?'<div class="tagline">'+g.tags.map(t=>'<span class="tagb" style="--th:'+tagHue(t)+'">'+esc(t)+'</span>').join('')+'</div>':'')+'</td>'
+  return '<td class="title" data-f="title" title="Double-click to edit">'+esc(g.title)+(isMp(g)?' <span class="mp-tag mp-only" title="Multiplayer only - no story to finish">MP ONLY</span>':(g.mp==='story'?' <span class="mp-tag" title="Has multiplayer and a story campaign">MP</span>':''))+(wants100(g)?' <span class="w100" title="Want to 100% this one">&#127919;</span>':'')+((g.tags&&g.tags.length)?'<div class="tagline">'+g.tags.map(t=>'<span class="tagb" style="--th:'+tagHue(t)+'">'+esc(t)+'</span>').join('')+'</div>':'')+'</td>'
     +'<td class="plat" data-f="plat" title="Double-click to open editor">'+badges(g)+'</td>'
     +'<td class="center">'+statusCell(g,'finished')+'</td>'
     +'<td class="center">'+statusCell(g,'started')+'</td>'
@@ -465,7 +469,7 @@ function statCard(label,val){ return '<div class="card"><div class="cval">'+val+
 function avgOf(arr,key){ const r=arr.map(g=>num(g[key])).filter(x=>x!=null); return r.length? (r.reduce((s,x)=>s+x,0)/r.length): null; }
 function statsHtml(){
   const total=games.length, fin=games.filter(isFinished).length, done=games.filter(done100).length, want=games.filter(wants100).length;
-  const mp=games.filter(isMp).length;
+  const mp=games.filter(hasMp).length;
   const notfin=games.filter(g=>!isFinished(g)&&!isMp(g)).length;
   const playing=games.filter(g=>isStarted(g)&&!isFinished(g)&&!isMp(g)).length;
   const groupCount=allGroups().length;
@@ -532,23 +536,24 @@ function fillGroupSelect(current){
   sel.value=current||'';
 }
 function updateFinalState(){
-  const ok = (yes(f('mStarted').value) || yes(f('mFin').value)) && !modalMp;
+  const ok = (yes(f('mStarted').value) || yes(f('mFin').value)) && modalMp!=='only';
   const el=f('mFinal'); if(el){ el.disabled=!ok; el.style.opacity=ok?'1':'0.45'; if(!ok) el.value=''; }
 }
 function updateMpUI(){
-  const btn=document.getElementById('mMpBtn'); if(btn){ btn.classList.toggle('on', modalMp); btn.textContent = modalMp?'Yes':'No'; }
-  ['mFin','mStarted'].forEach(id=>{ const el=f(id); if(el){ el.disabled=modalMp; el.style.opacity=modalMp?'0.45':'1'; if(modalMp) el.value=''; } });
+  const sel=document.getElementById('mMpSel'); if(sel) sel.value=modalMp;
+  const only = (modalMp==='only');
+  ['mFin','mStarted'].forEach(id=>{ const el=f(id); if(el){ el.disabled=only; el.style.opacity=only?'0.45':'1'; if(only) el.value=''; } });
   updateFinalState();
 }
 function openModal(id){
   editingId=id;
-  const g = id? games.find(x=>x.id===id) : {title:'',platforms:(filters.platform!=='all'?[filters.platform]:['PC']),group:'',tags:[],mp:false,finished:'',started:'',want100:'',done100:'',replayable:'',want:null,final:null,comments:''};
+  const g = id? games.find(x=>x.id===id) : {title:'',platforms:(filters.platform!=='all'?[filters.platform]:['PC']),group:'',tags:[],mp:'',finished:'',started:'',want100:'',done100:'',replayable:'',want:null,final:null,comments:''};
   f('mTitleHdr').textContent = id?'Edit game':'Add game';
   f('mGame').value=g.title||''; f('mGame').classList.remove('err');
   modalPlats=platsOf(g).slice(); renderPlatChips();
   fillGroupSelect(g.group||'');
   modalTags=(g.tags||[]).slice(); renderModalTags();
-  modalMp = g.mp===true;
+  modalMp = g.mp||'';
   f('mFin').value=g.finished||''; f('mStarted').value=g.started||'';
   f('mWant').value=g.want100||''; f('mDone').value=g.done100||''; f('mReplay').value=g.replayable||'';
   f('mWantR').value=(g.want===0||g.want)?g.want:''; f('mFinal').value=(g.final===0||g.final)?g.final:'';
@@ -564,11 +569,11 @@ function saveModal(){
   if(dup && !confirm('Another game is already called "'+title+'". Save anyway?')) return;
   const platforms=modalPlats.slice();
   const want=num(f('mWantR').value);
-  const startedYes = (yes(f('mStarted').value) || yes(f('mFin').value)) && !modalMp;
+  const startedYes = (yes(f('mStarted').value) || yes(f('mFin').value)) && modalMp!=='only';
   const final = startedYes ? num(f('mFinal').value) : null;
   let group=f('mGroup').value; if(group==='__new__') group='';
   const data={ title, platforms:rankPlats(platforms), group, tags:modalTags.slice(), mp:modalMp, finished:f('mFin').value.trim(), started:f('mStarted').value.trim(), want100:f('mWant').value.trim(), done100:f('mDone').value.trim(), replayable:f('mReplay').value.trim(), want, final, comments:f('mComments').value.trim() };
-  if(modalMp){ data.finished=''; data.started=''; data.final=null; }
+  if(modalMp==='only'){ data.finished=''; data.started=''; data.final=null; }
   else if(yes(data.finished) && !data.started) data.started='Yes';
   if(editingId){ const t=games.find(x=>x.id===editingId); delete t.platform; delete t.rating; delete t.series; Object.assign(t, data); }
   else { data.id=uid(); games.push(data); }
@@ -611,15 +616,15 @@ function exportJSON(){
 }
 function csvCell(v){ v=(v==null?'':String(v)); return /[",\n]/.test(v)? '"'+v.replace(/"/g,'""')+'"' : v; }
 function exportCSV(){
-  const head=['Game','Group','Tags','Platform(s)','Multiplayer only?','Finished?','Started/Played?','Want to 100%?','100% Complete?','Replayable?','Want to Play (1-10)','Final Rating (1-10)','Comments'];
+  const head=['Game','Group','Tags','Platform(s)','Multiplayer','Finished?','Started/Played?','Want to 100%?','100% Complete?','Replayable?','Want to Play (1-10)','Final Rating (1-10)','Comments'];
   const lines=[head.map(csvCell).join(',')];
-  games.forEach(g=>{ lines.push([g.title, g.group, (g.tags||[]).join('; '), platsOf(g).join('; '), (g.mp?'Yes':''), g.finished, g.started, g.want100, g.done100, g.replayable, g.want, g.final, g.comments].map(csvCell).join(',')); });
+  games.forEach(g=>{ lines.push([g.title, g.group, (g.tags||[]).join('; '), platsOf(g).join('; '), (g.mp==='only'?'Multiplayer only':(g.mp==='story'?'Multiplayer + Story':'')), g.finished, g.started, g.want100, g.done100, g.replayable, g.want, g.final, g.comments].map(csvCell).join(',')); });
   download('games.csv', lines.join('\r\n'), 'text/csv');
 }
 function importJSON(e){
   const file=e.target.files[0]; if(!file) return;
   const reader=new FileReader();
-  reader.onload=()=>{ try{ const parsed=JSON.parse(reader.result); const a=Array.isArray(parsed)?parsed:((parsed&&Array.isArray(parsed.games))?parsed.games:null); if(!a) throw new Error('File is not a games list'); if(confirm('Import '+a.length+' games? This replaces your current '+games.length+'.')){ if(parsed&&!Array.isArray(parsed)&&parsed.groupColors&&typeof parsed.groupColors==='object'){ groupColors={}; Object.keys(parsed.groupColors).forEach(k=>{ const v=parsed.groupColors[k]; if(typeof v==='string'&&/^#[0-9a-fA-F]{6}$/.test(v)) groupColors[k]=v; }); saveGroupColors(); } games=prep(a.map(x=>Object.assign({title:'',group:'',ord:0,tags:[],mp:false,finished:'',want100:'',done100:'',replayable:'',comments:''},x)), true); save(); view='all'; buildPlatformOptions(); render(); } }catch(err){ alert('Could not import: '+err.message); } e.target.value=''; };
+  reader.onload=()=>{ try{ const parsed=JSON.parse(reader.result); const a=Array.isArray(parsed)?parsed:((parsed&&Array.isArray(parsed.games))?parsed.games:null); if(!a) throw new Error('File is not a games list'); if(confirm('Import '+a.length+' games? This replaces your current '+games.length+'.')){ if(parsed&&!Array.isArray(parsed)&&parsed.groupColors&&typeof parsed.groupColors==='object'){ groupColors={}; Object.keys(parsed.groupColors).forEach(k=>{ const v=parsed.groupColors[k]; if(typeof v==='string'&&/^#[0-9a-fA-F]{6}$/.test(v)) groupColors[k]=v; }); saveGroupColors(); } games=prep(a.map(x=>Object.assign({title:'',group:'',ord:0,tags:[],mp:'',finished:'',want100:'',done100:'',replayable:'',comments:''},x)), true); save(); view='all'; buildPlatformOptions(); render(); } }catch(err){ alert('Could not import: '+err.message); } e.target.value=''; };
   reader.readAsText(file);
 }
 /* ---- group tagging (tag every game in a group at once) ---- */
@@ -758,7 +763,7 @@ function bind(){
   f('main').addEventListener('dragend',onDragEnd);
   f('mCancel').addEventListener('click',closeModal);
   f('mSave').addEventListener('click',saveModal);
-  f('mMpBtn').addEventListener('click',()=>{ modalMp=!modalMp; updateMpUI(); });
+  f('mMpSel').addEventListener('change',e=>{ modalMp=e.target.value; updateMpUI(); });
   f('mStarted').addEventListener('input',updateFinalState);
   f('mFin').addEventListener('input',updateFinalState);
   f('mGroup').addEventListener('change',e=>{ if(e.target.value==='__new__'){ const name=(prompt('New group name:')||'').trim(); fillGroupSelect(name); } });
