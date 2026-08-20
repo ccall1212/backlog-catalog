@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Backlog Catalog</title>
-<meta name="app-version" content="1.14.0">
+<meta name="app-version" content="1.15.0">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0f1420">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%236366f1'/><text x='32' y='43' font-size='28' text-anchor='middle' fill='white' font-family='Segoe UI,Arial,sans-serif' font-weight='700'>BC</text></svg>">
@@ -152,8 +152,37 @@ body.theme-light .tagb[style]{border-color:hsl(var(--th),45%,60%);color:hsl(var(
 .cellEdit{width:100%;min-width:56px;padding:4px 6px;font-size:13px}
 td[data-f]{cursor:cell}
 td[data-f],.chk{touch-action:manipulation}
+.navtoggle,.addtop{display:none}
 @media(max-width:700px){
   .layout{flex-direction:column;height:100vh;height:100dvh}
+  /* --- compact top bar: menu + title + Add. Everything else folds away --- */
+  .navtoggle{display:inline-block;background:none;border:none;color:var(--text);font-size:20px;line-height:1;padding:0 10px 0 0;cursor:pointer}
+  .addtop{display:inline-block;grid-row:1;grid-column:2;margin:0 12px 0 0;padding:7px 12px;font-size:13px;white-space:nowrap}
+  .side-theme{display:none}
+  body.navopen .side-theme{display:block;grid-row:3;grid-column:1/-1;padding:0 12px 10px}
+  body.navopen .side-theme select{width:100%}
+  .nav{display:none}
+  body.navopen .nav{display:flex}
+  #toolbar{display:none !important}
+  body.navopen #toolbar{display:grid !important}
+  /* --- games as cards: no sideways scrolling on a phone --- */
+  .tablewrap{border:none;box-shadow:none;border-radius:0}
+  table,table.grouped{min-width:0;width:100%}
+  thead{display:none}
+  tbody,tr,td{display:block}
+  tbody tr{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:10px 12px;margin-bottom:10px}
+  tbody tr:nth-child(even){background:var(--panel)}
+  td{border:none !important;padding:2px 0;text-align:left !important}
+  td:empty{display:none}
+  td.title{position:static;max-width:none;font-size:16px;font-weight:700;margin-bottom:2px}
+  td.plat{margin-bottom:4px}
+  td[data-label]{display:inline-block;margin:2px 14px 2px 0;font-size:13px}
+  td[data-label]::before{content:attr(data-label) " ";color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.03em;margin-right:4px}
+  td.comments{display:block;margin-top:4px}
+  td.grpcell{display:block;background:none;border-left:none;color:var(--accent);font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;max-width:none}
+  td.grpcell .grpbtns{display:inline;margin-left:6px}
+  td.actions{text-align:right !important;margin-top:6px}
+  .grp-head{margin:10px 0 6px}
   /* header: brand + theme on one row, nav as a single scrollable pill strip */
   .sidebar{width:auto;border-right:none;border-bottom:1px solid var(--line);overflow:visible;display:grid;grid-template-columns:1fr auto;align-items:center}
   .sidebar .brand{grid-row:1;grid-column:1;font-size:16px;padding:10px 12px 6px}
@@ -181,17 +210,14 @@ td[data-f],.chk{touch-action:manipulation}
   footer{padding:8px 12px;font-size:11px}
   .grid{grid-template-columns:1fr}
   input,select,textarea,.cellEdit{font-size:16px}
-  table{min-width:620px}
-  table.grouped{min-width:740px}
-  .xtra{display:none}
-  td.title{position:sticky;left:0;background:var(--panel);z-index:1;max-width:170px}
 }
 </style>
 </head>
 <body>
 <div class="layout">
   <aside class="sidebar">
-    <div class="brand">&#127918; Backlog Catalog</div>
+    <div class="brand"><button type="button" id="navToggle" class="navtoggle" aria-label="Menu">&#9776;</button>&#127918; Backlog Catalog</div>
+    <button type="button" id="mAddTop" class="btn primary addtop">+ Add</button>
     <nav class="nav">
       <button class="nav-item" data-view="all">All Games <span class="cnt" id="cnt-all"></span></button>
       <button class="nav-item parent" data-view="backlog"><span class="chev">&#9662;</span> Backlog</button>
@@ -330,7 +356,7 @@ td[data-f],.chk{touch-action:manipulation}
 <script>
 const SEED = [/*__SEED__*/];
 const LS_KEY = 'gamesLibrary.v1';
-const APP_VERSION = '1.14.0';
+const APP_VERSION = '1.15.0';
 const BK_KEY = LS_KEY + '.lastBackup';
 const DEFAULT_TAGS = ['RPG','FPS','RTS','MMORPG','Platformer','Adventure','Strategy','Racing','Fighting','Puzzle','Horror','Survival','Co-op'];
 const THEME_KEY = LS_KEY + '.theme';
@@ -492,12 +518,12 @@ function gameCells(g, inGroup){
   const played = isStarted(g) || isFinished(g);
   return '<td class="title" data-f="title" title="Double-click to edit">'+esc(g.title)+(isMp(g)?' <span class="mp-tag mp-only" title="Multiplayer only - no story to finish">MP ONLY</span>':(g.mp==='story'?' <span class="mp-tag" title="Has multiplayer and a story campaign">MP</span>':''))+(wants100(g)?' <span class="w100" title="Want to 100% this one">&#127919;</span>':'')+((g.tags&&g.tags.length)?'<div class="tagline">'+g.tags.map(t=>'<span class="tagb" style="--th:'+tagHue(t)+'">'+esc(t)+'</span>').join('')+'</div>':'')+'</td>'
     +'<td class="plat" data-f="plat" title="Double-click to open editor">'+badges(g)+'</td>'
-    +'<td class="center">'+statusCell(g,'finished')+'</td>'
-    +'<td class="center">'+statusCell(g,'started')+'</td>'
-    +'<td class="center xtra" data-f="done100" title="Double-click to edit">'+done100Cell(g)+'</td>'
-    +'<td class="center xtra" data-f="replayable" title="Double-click to edit">'+esc(g.replayable||'')+'</td>'
-    +'<td class="center" data-f="rating" title="Rating - double-click to edit">'+ratingCell(g)+'</td>'
-    +'<td class="comments xtra" data-f="comments" title="Double-click to edit">'+esc(g.comments||'')+'</td>'
+    +'<td class="center" data-label="Finished">'+statusCell(g,'finished')+'</td>'
+    +'<td class="center" data-label="Played">'+statusCell(g,'started')+'</td>'
+    +'<td class="center xtra" data-label="100%" data-f="done100" title="Double-click to edit">'+done100Cell(g)+'</td>'
+    +'<td class="center xtra" data-label="Replay" data-f="replayable" title="Double-click to edit">'+esc(g.replayable||'')+'</td>'
+    +'<td class="center" data-label="Rating" data-f="rating" title="Rating - double-click to edit">'+ratingCell(g)+'</td>'
+    +'<td class="comments xtra" data-label="Notes" data-f="comments" title="Double-click to edit">'+esc(g.comments||'')+'</td>'
     +'<td class="actions">'+arrows+'<button class="icon" data-act="edit" data-id="'+g.id+'" title="Edit">&#9998;</button>'
     +'<button class="icon danger" data-act="del" data-id="'+g.id+'" title="Delete">&#128465;</button></td>';
 }
@@ -928,7 +954,9 @@ function onMainClick(e){
   if(TOUCH){ const td=e.target.closest('td[data-f]'); if(td && !td.querySelector('input,select')){ onCellDblClick(e); } }
 }
 function bind(){
-  document.querySelectorAll('.nav-item').forEach(n=>n.addEventListener('click',()=>{ view=n.dataset.view; render(); }));
+  document.querySelectorAll('.nav-item').forEach(n=>n.addEventListener('click',()=>{ view=n.dataset.view; document.body.classList.remove('navopen'); render(); }));
+  f('navToggle').addEventListener('click',()=>document.body.classList.toggle('navopen'));
+  f('mAddTop').addEventListener('click',()=>openModal(null));
   f('search').addEventListener('input',e=>{ filters.search=e.target.value; render(); });
   f('platform').addEventListener('change',e=>{ filters.platform=e.target.value; render(); });
   f('tagFilter').addEventListener('change',e=>{ filters.tag=e.target.value; render(); });
