@@ -19,17 +19,23 @@ and never touch it again.
 ## 2. Create the Worker (3 min)
 1. Sign up / sign in (free): https://dash.cloudflare.com
 2. Left sidebar → **Workers & Pages** → **Create** → **Create Worker**.
-3. Name it `backlog-steam` → **Deploy** (deploys a hello-world first).
+3. Name it `backlog-catalog` → **Deploy** (deploys a hello-world first).
 4. Click **Edit code**, delete everything, paste the full contents of
    `worker.js` from this folder → **Deploy**.
 
 ## 3. Add the key as a secret (1 min)
 1. Back on the worker's page → **Settings** → **Variables & Secrets** → **Add**.
-2. Type: **Secret** · Name: `STEAM_KEY` · Value: your API key → Save/Deploy.
+2. Type: **Secret** · Name: `STEAM_KEY` · Value: your API key → Save.
+3. ⚠️ **Saving the secret only creates a new *version* — it does not go live
+   on its own.** Open the **Deployments** tab: if the version serving 100% of
+   traffic isn't the newest one (the row labelled *"Add secret: STEAM_KEY"* in
+   Version History), click the **•••** menu on that newest row and **deploy /
+   promote** it. Until you do, the worker runs the old code with no key and
+   every request returns `{"error":"steam request failed"}`.
 
 ## 4. Wire the app (30 sec)
 Copy the worker URL shown on its overview page, e.g.
-`https://backlog-steam.<your-subdomain>.workers.dev` — the URL itself is safe
+`https://backlog-catalog.<your-subdomain>.workers.dev` — the URL itself is safe
 to share. Give it to Claude to bake into the app (it goes in the
 `STEAM_PROXY` constant in `build/app_template.html`), or set it locally in
 DevTools: `localStorage.setItem('gamesLibrary.v1.steamRelay','<url>')`.
@@ -41,7 +47,7 @@ Steam profile → **Edit Profile → Privacy Settings**:
 Otherwise Steam returns an empty library / no achievements.
 
 ## Sanity test
-Open `https://backlog-steam.<you>.workers.dev/resolve?vanity=SpartanCall`
+Open `https://backlog-catalog.<you>.workers.dev/resolve?vanity=SpartanCall`
 in a browser — you should get JSON with a `steamid`. Then, **on the live
 site** (`https://ccall1212.github.io/backlog-catalog/`), the app's
 **Import → Import from Steam** should work end to end.
