@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Backlog Catalog</title>
-<meta name="app-version" content="1.11.1">
+<meta name="app-version" content="1.11.2">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0f1420">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%236366f1'/><text x='32' y='43' font-size='28' text-anchor='middle' fill='white' font-family='Segoe UI,Arial,sans-serif' font-weight='700'>BC</text></svg>">
@@ -312,7 +312,7 @@ td[data-f],.chk{touch-action:manipulation}
 <script>
 const SEED = [/*__SEED__*/];
 const LS_KEY = 'gamesLibrary.v1';
-const APP_VERSION = '1.11.1';
+const APP_VERSION = '1.11.2';
 const BK_KEY = LS_KEY + '.lastBackup';
 const DEFAULT_TAGS = ['RPG','FPS','RTS','MMORPG','Platformer','Adventure','Strategy','Racing','Fighting','Puzzle','Horror','Survival','Co-op'];
 const THEME_KEY = LS_KEY + '.theme';
@@ -697,10 +697,13 @@ async function steamFetchAll(profileInput, status){
   if(!sid){ let v=t; const mm=t.match(/\/id\/([^\/?#]+)/); if(mm) v=mm[1]; status('Resolving profile…'); const d=await j('/resolve?vanity='+encodeURIComponent(v)); if(!d.steamid) throw new Error('Could not resolve that profile'); sid=d.steamid; }
   status('Fetching library…');
   const og=await j('/owned?steamid='+sid);
-  const list=(og.games||[]).map(g=>({ appid:g.appid, title:cleanSteamTitle(g.name||('App '+g.appid)), hours:Math.round((g.playtime_forever||0)/6)/10, ach:null, total:null, saw:true }));
+  const list=(og.games||[]).map(g=>({ appid:g.appid, title:cleanSteamTitle(g.name||('App '+g.appid)), hours:Math.round((g.playtime_forever||0)/6)/10, played:(g.playtime_forever||0)>0, ach:null, total:null, saw:true }));
   if(!list.length) throw new Error("No games returned — is the profile's Game details privacy set to Public?");
-  const played=list.filter(g=>g.hours>0), queue=played.slice(); let done=0;
-  async function w(){ while(queue.length){ const g=queue.shift(); try{ const a=await j('/achievements?steamid='+sid+'&appid='+g.appid); if(a && a.total>0){ g.ach=a.achieved; g.total=a.total; } }catch(e){} done++; if(done%5===0||!queue.length) status('Checking achievements… '+done+'/'+played.length); } }
+  // check achievements on EVERY game, not just played ones: rounding once hid
+  // a minutes-long game, and Steam can report 0 playtime for old/shared games
+  // that are still 100%-completed
+  const queue=list.slice(); let done=0;
+  async function w(){ while(queue.length){ const g=queue.shift(); try{ const a=await j('/achievements?steamid='+sid+'&appid='+g.appid); if(a && a.total>0){ g.ach=a.achieved; g.total=a.total; } }catch(e){} done++; if(done%5===0||!queue.length) status('Checking achievements… '+done+'/'+list.length); } }
   await Promise.all([w(),w(),w(),w(),w(),w()]);
   return list;
 }
@@ -725,16 +728,17 @@ function steamMerge(list){
   const res={matched:0, added:0, marked:0};
   list.forEach(s=>{
     const perfect=steamIsPerfect(s);
+    const sp=(s.played!==undefined)?s.played:(s.hours>0); // fetch path knows exact minutes; paste path falls back to hours
     const ex=byNorm.get(normTitle(s.title));
     if(ex){
       res.matched++;
       if(platsOf(ex).indexOf('PC')<0) ex.platforms=rankPlats(platsOf(ex).concat(['PC']));
       if(ex.mp!=='only'){
-        if(s.hours>0 && upgradable(ex.started)) ex.started='Yes';
+        if(sp && upgradable(ex.started)) ex.started='Yes';
         if(perfect){ if(upgradable(ex.done100)){ ex.done100='Yes'; res.marked++; } if(upgradable(ex.finished)) ex.finished='Yes'; if(upgradable(ex.started)) ex.started='Yes'; }
       }
     } else {
-      const ng={ id:uid(), title:s.title, platforms:['PC'], group:'', ord:0, tags:[], mp:'', finished:perfect?'Yes':'', started:(s.hours>0||perfect)?'Yes':'', want100:'', done100:perfect?'Yes':'', replayable:'', want:null, final:null, comments:'' };
+      const ng={ id:uid(), title:s.title, platforms:['PC'], group:'', ord:0, tags:[], mp:'', finished:perfect?'Yes':'', started:(sp||perfect)?'Yes':'', want100:'', done100:perfect?'Yes':'', replayable:'', want:null, final:null, comments:'' };
       games.push(ng); byNorm.set(normTitle(ng.title), ng);
       res.added++; if(perfect) res.marked++;
     }
