@@ -1,5 +1,9 @@
 # 🎮 Backlog Catalog
 
+![version](https://img.shields.io/github/v/tag/ccall1212/backlog-catalog?label=version&color=6366f1)
+![license](https://img.shields.io/github/license/ccall1212/backlog-catalog?color=green)
+![single file](https://img.shields.io/badge/dependencies-none-success)
+
 A single-file web app for tracking the video games you own, the ones you're playing, and the mountain of ones you keep meaning to finish.
 
 **▶️ [Open the app](https://ccall1212.github.io/backlog-catalog/)** — no install, no account, works offline.
@@ -52,6 +56,6 @@ Download `index.html` and open it in any browser. That's the whole app — one f
 
 ## Version
 
-Current: **v1.17.0** — see the sidebar footer for the version you're running.
+Current: **v1.17.1** — see the sidebar footer for the version you're running.
 
 <sub>Built with Claude Code.</sub>
