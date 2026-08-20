@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Backlog Catalog</title>
-<meta name="app-version" content="1.7.0">
+<meta name="app-version" content="1.7.1">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0f1420">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%236366f1'/><text x='32' y='43' font-size='28' text-anchor='middle' fill='white' font-family='Segoe UI,Arial,sans-serif' font-weight='700'>BC</text></svg>">
@@ -62,7 +62,10 @@ input:disabled{cursor:not-allowed}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
 .btn.primary:hover{background:var(--accent2)}
 main{flex:1;min-height:0;overflow:auto;padding:6px 22px 24px}
-.tablewrap{border:1px solid var(--line);border-radius:10px;overflow-x:auto;box-shadow:0 2px 10px rgba(0,0,0,.18)}
+/* NOTE: do not give .tablewrap an overflow value — it would become the nearest
+   scroll container and steal `position:sticky` from the header row (main is the
+   scroller, so th sticks to the viewport and td.title pins while panning). */
+.tablewrap{border:1px solid var(--line);border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,.18)}
 table{width:100%;border-collapse:collapse;min-width:1040px}
 table.grouped{min-width:1160px}
 th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
@@ -264,7 +267,7 @@ td[data-f],.chk{touch-action:manipulation}
 <script>
 const SEED = [/*__SEED__*/];
 const LS_KEY = 'gamesLibrary.v1';
-const APP_VERSION = '1.7.0';
+const APP_VERSION = '1.7.1';
 const BK_KEY = LS_KEY + '.lastBackup';
 const DEFAULT_TAGS = ['RPG','FPS','RTS','MMORPG','Platformer','Adventure','Strategy','Racing','Fighting','Puzzle','Horror','Survival'];
 const THEME_KEY = LS_KEY + '.theme';
