@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Backlog Catalog</title>
-<meta name="app-version" content="1.16.0">
+<meta name="app-version" content="1.17.0">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0f1420">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%236366f1'/><text x='32' y='43' font-size='28' text-anchor='middle' fill='white' font-family='Segoe UI,Arial,sans-serif' font-weight='700'>BC</text></svg>">
@@ -357,13 +357,28 @@ td[data-f],.chk{touch-action:manipulation}
   </div>
 </div>
 
+<div id="pickModal" class="modal">
+  <div class="dialog" style="max-width:420px">
+    <h2>&#127922; Pick a game for me</h2>
+    <label class="hint">Pick from</label>
+    <select id="pkPool" style="width:100%;margin:6px 0 12px"></select>
+    <label class="hint">Tag</label>
+    <select id="pkTag" style="width:100%;margin:6px 0 4px"></select>
+    <p class="hint" id="pkNote" style="margin:10px 0 0">Higher-rated games are picked more often.</p>
+    <div class="dlg-actions">
+      <button id="pkCancel" class="btn">Cancel</button>
+      <button id="pkGo" class="btn primary">Pick</button>
+    </div>
+  </div>
+</div>
+
 <datalist id="ynList"><option value="Yes"></option><option value="No"></option><option value="N/A"></option></datalist>
 <input id="importFile" type="file" accept="application/json,.json" hidden>
 
 <script>
 const SEED = [/*__SEED__*/];
 const LS_KEY = 'gamesLibrary.v1';
-const APP_VERSION = '1.16.0';
+const APP_VERSION = '1.17.0';
 const BK_KEY = LS_KEY + '.lastBackup';
 const DEFAULT_TAGS = ['RPG','FPS','RTS','MMORPG','Platformer','Adventure','Strategy','Racing','Fighting','Puzzle','Horror','Survival','Co-op'];
 const THEME_KEY = LS_KEY + '.theme';
@@ -950,18 +965,47 @@ function moveInGroup(id,dir){
   save(); render();
 }
 function resetFilters(){ filters.search=''; filters.platform='all'; filters.tag='all'; const s=f('search'); if(s) s.value=''; const p=f('platform'); if(p) p.value='all'; }
+/* the list a given view is currently showing (respects search/platform/tag filters) */
+function viewList(v){
+  const base=visibleGames();
+  if(v==='bl-nf'||v==='backlog') return base.filter(g=>!isFinished(g)&&!isMp(g));
+  if(v==='bl-playing') return base.filter(g=>isStarted(g)&&!isFinished(g)&&!isMp(g));
+  if(v==='bl-fin') return base.filter(isFinished);
+  if(v==='bl-want') return base.filter(wants100);
+  if(v==='bl-done') return base.filter(done100);
+  if(v==='bl-mp') return base.filter(hasMp);
+  return base;
+}
+const PICK_POOLS=[['current','This page'],['bl-playing','Playing Now'],['bl-nf','Not Finished'],['bl-want','Want to 100%'],['all','All games']];
+function openPickModal(){
+  const cur=(view==='stats')?'all':view;
+  const pool=f('pkPool');
+  pool.innerHTML=PICK_POOLS.map(p=>{
+    const target=(p[0]==='current')?cur:p[0];
+    const n=viewList(target).length;
+    const label=(p[0]==='current')?('This page &#8212; '+(VIEW_TITLES[cur]||'All Games')):p[1];
+    return '<option value="'+p[0]+'">'+label+' ('+n+')</option>';
+  }).join('');
+  const ts=usedTags();
+  f('pkTag').innerHTML='<option value="all">Any tag</option>'+ts.map(t=>'<option value="'+esc(t)+'">'+esc(t)+'</option>').join('');
+  f('pkTag').parentNode.style.display=ts.length?'':'none';
+  document.getElementById('pickModal').classList.add('show');
+}
+function closePickModal(){ document.getElementById('pickModal').classList.remove('show'); }
 function pickRandom(){
-  // pool: unfinished, non-multiplayer-only games, honoring platform/tag filters;
-  // weighted by rating (unrated games count as a middling 5)
-  let pool=games.filter(g=>!isFinished(g)&&!isMp(g));
-  if(filters.platform!=='all') pool=pool.filter(g=>platsOf(g).indexOf(filters.platform)>=0);
-  if(filters.tag!=='all') pool=pool.filter(g=>(g.tags||[]).indexOf(filters.tag)>=0);
-  if(!pool.length){ alert('Nothing unfinished to pick from!'); return; }
+  const cur=(view==='stats')?'all':view;
+  const sel=f('pkPool').value, tag=f('pkTag').value;
+  const target=(sel==='current')?cur:sel;
+  let pool=viewList(target);
+  if(tag!=='all') pool=pool.filter(g=>(g.tags||[]).indexOf(tag)>=0);
+  if(!pool.length){ f('pkNote').textContent='Nothing matches that combination — try a different pool or tag.'; return; }
+  // weighted by rating; unrated games count as a middling 5
   const w=g=>(ratingNum(g)!=null?Math.max(ratingNum(g),0.5):5);
   let r=Math.random()*pool.reduce((s,g)=>s+w(g),0), pick=pool[pool.length-1];
   for(const g of pool){ r-=w(g); if(r<=0){ pick=g; break; } }
-  filters.search=''; const si=f('search'); if(si) si.value='';
-  view='bl-nf'; render();
+  closePickModal();
+  if(target!==view){ view=target; }
+  render();
   const tr=document.querySelector('tr[data-id="'+pick.id+'"]');
   if(tr){ tr.classList.add('picked'); tr.scrollIntoView({block:'center'}); setTimeout(()=>tr.classList.remove('picked'),2600); }
 }
@@ -992,7 +1036,10 @@ function bind(){
   f('sort').addEventListener('change',e=>{ filters.sort=e.target.value; render(); });
   f('addBtn').addEventListener('click',()=>openModal(null));
   f('createGroupBtn').addEventListener('click',openGroupModal);
-  f('pickBtn').addEventListener('click',pickRandom);
+  f('pickBtn').addEventListener('click',openPickModal);
+  f('pkCancel').addEventListener('click',closePickModal);
+  f('pkGo').addEventListener('click',pickRandom);
+  document.getElementById('pickModal').addEventListener('click',e=>{ if(e.target.id==='pickModal') closePickModal(); });
   f('exportJson').addEventListener('click',exportJSON);
   f('exportCsv').addEventListener('click',exportCSV);
   f('importBtn').addEventListener('click',()=>document.getElementById('importModal').classList.add('show'));
@@ -1039,7 +1086,7 @@ function bind(){
   f('tgColors').addEventListener('click',e=>{ const b=e.target.closest('[data-gc]'); if(!b||!tgGroup) return; const c=b.dataset.gc; if(c) groupColors[tgGroup]=c; else delete groupColors[tgGroup]; saveGroupColors(); renderTagGroup(); render(); });
   f('themeSel').addEventListener('change',e=>applyTheme(e.target.value));
   document.getElementById('tagGroupModal').addEventListener('click',e=>{ if(e.target.id==='tagGroupModal') closeTagGroupModal(); });
-  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeModal(); closeGroupModal(); closeTagGroupModal(); closeSteamModal(); document.getElementById('importModal').classList.remove('show'); } });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeModal(); closeGroupModal(); closeTagGroupModal(); closeSteamModal(); closePickModal(); document.getElementById('importModal').classList.remove('show'); } });
   if(TOUCH){ const ft=document.querySelector('footer'); if(ft) ft.innerHTML='Tip: <b>tap</b> a cell to edit &#8226; auto-saves here &#8226; <b>Export JSON</b> to back up &#8226; v'+APP_VERSION; }
 }
 (function(){ const sel=f('themeSel'); if(sel){ sel.innerHTML=THEMES.map(t=>'<option>'+t+'</option>').join(''); let tv='Midnight'; try{ tv=localStorage.getItem(THEME_KEY)||'Midnight'; }catch(e){} if(THEMES.indexOf(tv)<0) tv='Midnight'; sel.value=tv; applyTheme(tv); } })();
