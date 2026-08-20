@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Backlog Catalog</title>
-<meta name="app-version" content="1.15.0">
+<meta name="app-version" content="1.16.0">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0f1420">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%236366f1'/><text x='32' y='43' font-size='28' text-anchor='middle' fill='white' font-family='Segoe UI,Arial,sans-serif' font-weight='700'>BC</text></svg>">
@@ -111,6 +111,10 @@ tr.dto td{box-shadow:inset 0 2px 0 var(--accent)}
 .grp-head:first-child{margin-top:4px}
 .grp-head .count{margin-left:auto;background:var(--panel2);color:var(--muted);border-radius:999px;padding:1px 10px;font-size:12px;font-weight:600}
 .cards{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0 18px}
+.card[data-goview]{cursor:pointer}
+.card[data-goview]:hover{border-color:var(--accent)}
+tr[data-goplat]{cursor:pointer}
+tr.picked td{background:rgba(99,102,241,.25)!important}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 20px;min-width:124px;box-shadow:0 2px 10px rgba(0,0,0,.18)}
 .cval{font-size:26px;font-weight:700}.clab{color:var(--muted);font-size:12px;margin-top:2px}
 h3{color:var(--muted);font-weight:600;margin:18px 0 8px}
@@ -160,6 +164,7 @@ td[data-f],.chk{touch-action:manipulation}
   .addtop{display:inline-block;grid-row:1;grid-column:2;margin:0 12px 0 0;padding:7px 12px;font-size:13px;white-space:nowrap}
   .side-theme{display:none}
   body.navopen .side-theme{display:block;grid-row:3;grid-column:1/-1;padding:0 12px 10px}
+  body.navopen .side-foot{display:block;grid-row:4;grid-column:1/-1;padding:0 12px 10px;border-top:none}
   body.navopen .side-theme select{width:100%}
   .nav{display:none}
   body.navopen .nav{display:flex}
@@ -223,6 +228,7 @@ td[data-f],.chk{touch-action:manipulation}
       <button class="nav-item parent" data-view="backlog"><span class="chev">&#9662;</span> Backlog</button>
       <div class="nav-sub">
         <button class="nav-item sub" data-view="bl-nf">Not Finished <span class="cnt" id="cnt-nf"></span></button>
+        <button class="nav-item sub" data-view="bl-playing">Playing Now <span class="cnt" id="cnt-playing"></span></button>
         <button class="nav-item sub" data-view="bl-fin">Finished <span class="cnt" id="cnt-fin"></span></button>
         <button class="nav-item sub" data-view="bl-want">Want to 100% <span class="cnt" id="cnt-want"></span></button>
       </div>
@@ -252,6 +258,7 @@ td[data-f],.chk{touch-action:manipulation}
       <div class="spacer"></div>
       <button id="addBtn" class="btn primary">+ Add game</button>
       <button id="createGroupBtn" class="btn">+ Create group</button>
+      <button id="pickBtn" class="btn" title="Pick a random unfinished game, weighted by how much you want to play it">&#127922; Pick for me</button>
       <button id="exportJson" class="btn">Export JSON</button>
       <button id="exportCsv" class="btn">Export CSV</button>
       <button id="importBtn" class="btn">Import</button>
@@ -356,7 +363,7 @@ td[data-f],.chk{touch-action:manipulation}
 <script>
 const SEED = [/*__SEED__*/];
 const LS_KEY = 'gamesLibrary.v1';
-const APP_VERSION = '1.15.0';
+const APP_VERSION = '1.16.0';
 const BK_KEY = LS_KEY + '.lastBackup';
 const DEFAULT_TAGS = ['RPG','FPS','RTS','MMORPG','Platformer','Adventure','Strategy','Racing','Fighting','Puzzle','Horror','Survival','Co-op'];
 const THEME_KEY = LS_KEY + '.theme';
@@ -379,7 +386,7 @@ const PLATFORMS = ['PC','Xbox','PlayStation','Nintendo'];
 const PRANK = {PC:0,Xbox:1,PlayStation:2,Nintendo:3};
 const PLAT_CLASS = {PC:'p-pc',Xbox:'p-xbox',PlayStation:'p-ps',Nintendo:'p-nin'};
 const TITLE_ALIASES = {'final fantasy x (10)':'Final Fantasy X'};
-const VIEW_TITLES = {all:'All Games',backlog:'Backlog','bl-nf':'Not Finished','bl-fin':'Finished','bl-want':'Want to 100%',stats:'Stats'};
+const VIEW_TITLES = {all:'All Games',backlog:'Backlog','bl-nf':'Not Finished','bl-playing':'Playing Now','bl-fin':'Finished','bl-want':'Want to 100%','bl-done':'100% Complete','bl-mp':'Multiplayer',stats:'Stats'};
 const GROUP_RULES = [
   [/lord of the rings/i,'The Lord of the Rings'],[/kingdom under fire/i,'Kingdom Under Fire'],[/kingdom hearts/i,'Kingdom Hearts'],
   [/assassin.?s creed|assissin/i,"Assassin's Creed"],[/tomb raider/i,'Tomb Raider'],[/final fantasy/i,'Final Fantasy'],
@@ -548,7 +555,7 @@ function groupTableHtml(list){
 }
 function renderTable(list){ return (filters.sort==='group' && games.some(g=>(g.group||'').trim())) ? groupTableHtml(list) : tableHtml(list); }
 function grp(label,arr){ return '<div class="grp-head">'+label+' <span class="count">'+arr.length+'</span></div>'+renderTable(arr); }
-function statCard(label,val){ return '<div class="card"><div class="cval">'+val+'</div><div class="clab">'+label+'</div></div>'; }
+function statCard(label,val,go){ return '<div class="card"'+(go?' data-goview="'+go+'" title="Show these games"':'')+'><div class="cval">'+val+'</div><div class="clab">'+label+'</div></div>'; }
 function avgOf(arr,key){ const r=arr.map(g=>num(g[key])).filter(x=>x!=null); return r.length? (r.reduce((s,x)=>s+x,0)/r.length): null; }
 function statsHtml(){
   const total=games.length, fin=games.filter(isFinished).length, done=games.filter(done100).length, want=games.filter(wants100).length;
@@ -560,17 +567,18 @@ function statsHtml(){
   const extra=Array.from(new Set([].concat.apply([],games.map(platsOf)).filter(p=>p&&PLATFORMS.indexOf(p)<0)));
   let rows='';
   PLATFORMS.concat(extra).forEach(p=>{ const gs=games.filter(g=>platsOf(g).indexOf(p)>=0); if(!gs.length) return; const a=avgOf(gs,'rating');
-    rows+='<tr><td><span class="badge '+(PLAT_CLASS[p]||'')+'">'+esc(p)+'</span></td><td class="center">'+gs.length+'</td><td class="center">'+gs.filter(isFinished).length+'</td><td class="center">'+gs.filter(done100).length+'</td><td class="center">'+(a!=null?a.toFixed(1):'&#8211;')+'</td></tr>'; });
-  return '<div class="cards">'+statCard('Total games',total)+statCard('Finished',fin)+statCard('Playing now',playing)+statCard('Not finished',notfin)+statCard('Multiplayer',mp)+statCard('Groups',groupCount)+statCard('100% complete',done)+statCard('Want to 100%',want)+statCard('Avg rating',avgR!=null?avgR.toFixed(1):'&#8211;')+'</div>'
-    +'<h3>By platform</h3><div class="tablewrap"><table><thead><tr><th>Platform</th><th class="center">Games</th><th class="center">Finished</th><th class="center">100%</th><th class="center">Avg final</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+    rows+='<tr data-goplat="'+esc(p)+'" title="Show '+esc(p)+' games"><td><span class="badge '+(PLAT_CLASS[p]||'')+'">'+esc(p)+'</span></td><td class="center">'+gs.length+'</td><td class="center">'+gs.filter(isFinished).length+'</td><td class="center">'+gs.filter(done100).length+'</td><td class="center">'+(a!=null?a.toFixed(1):'&#8211;')+'</td></tr>'; });
+  return '<div class="cards">'+statCard('Total games',total,'all')+statCard('Finished',fin,'bl-fin')+statCard('Playing now',playing,'bl-playing')+statCard('Not finished',notfin,'bl-nf')+statCard('Multiplayer',mp,'bl-mp')+statCard('Groups',groupCount,'all')+statCard('100% complete',done,'bl-done')+statCard('Want to 100%',want,'bl-want')+statCard('Avg rating',avgR!=null?avgR.toFixed(1):'&#8211;')+'</div>'
+    +'<h3>By platform <span class="hint">(click a row to see those games)</span></h3><div class="tablewrap"><table><thead><tr><th>Platform</th><th class="center">Games</th><th class="center">Finished</th><th class="center">100%</th><th class="center">Avg rating</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 function render(){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active','open'));
   const cur=document.querySelector('.nav-item[data-view="'+view+'"]'); if(cur) cur.classList.add('active');
-  if(view==='bl-nf'||view==='bl-fin'||view==='bl-want'){ const p=document.querySelector('.nav-item.parent'); if(p) p.classList.add('open'); }
+  if(view==='bl-nf'||view==='bl-playing'||view==='bl-fin'||view==='bl-want'){ const p=document.querySelector('.nav-item.parent'); if(p) p.classList.add('open'); }
   const base=visibleGames();
   const nf=base.filter(g=>!isFinished(g)&&!isMp(g)), fin=base.filter(isFinished), want=base.filter(wants100);
-  setText('cnt-all', base.length); setText('cnt-nf', nf.length); setText('cnt-fin', fin.length); setText('cnt-want', want.length);
+  const playingList=base.filter(g=>isStarted(g)&&!isFinished(g)&&!isMp(g));
+  setText('cnt-all', base.length); setText('cnt-nf', nf.length); setText('cnt-playing', playingList.length); setText('cnt-fin', fin.length); setText('cnt-want', want.length);
   setText('viewTitle', VIEW_TITLES[view]||'');
   buildTagOptions();
   const bk=(function(){ const t=Number(localStorage.getItem(BK_KEY)||0); if(!t) return {txt:'never',stale:true}; const d=Math.floor((Date.now()-t)/86400000); return {txt:(d===0?'today':d+'d ago'), stale:d>14}; })();
@@ -582,8 +590,11 @@ function render(){
   else if(view==='all'){ main.innerHTML=renderTable(base); }
   else if(view==='backlog'){ main.innerHTML=grp('NOT FINISHED',nf)+grp('FINISHED',fin)+grp('WANT TO 100% &#8212; go back &amp; 100%',want); }
   else if(view==='bl-nf'){ main.innerHTML=renderTable(nf); }
+  else if(view==='bl-playing'){ main.innerHTML=renderTable(playingList); }
   else if(view==='bl-fin'){ main.innerHTML=renderTable(fin); }
   else if(view==='bl-want'){ main.innerHTML=renderTable(want); }
+  else if(view==='bl-done'){ main.innerHTML=renderTable(base.filter(done100)); }
+  else if(view==='bl-mp'){ main.innerHTML=renderTable(base.filter(hasMp)); }
 }
 function buildPlatformOptions(){
   const all = Array.from(new Set(PLATFORMS.concat([].concat.apply([],games.map(platsOf)).filter(Boolean))));
@@ -938,7 +949,25 @@ function moveInGroup(id,dir){
   members.forEach((m,ix)=>{ m.ord=ix; });
   save(); render();
 }
+function resetFilters(){ filters.search=''; filters.platform='all'; filters.tag='all'; const s=f('search'); if(s) s.value=''; const p=f('platform'); if(p) p.value='all'; }
+function pickRandom(){
+  // pool: unfinished, non-multiplayer-only games, honoring platform/tag filters;
+  // weighted by rating (unrated games count as a middling 5)
+  let pool=games.filter(g=>!isFinished(g)&&!isMp(g));
+  if(filters.platform!=='all') pool=pool.filter(g=>platsOf(g).indexOf(filters.platform)>=0);
+  if(filters.tag!=='all') pool=pool.filter(g=>(g.tags||[]).indexOf(filters.tag)>=0);
+  if(!pool.length){ alert('Nothing unfinished to pick from!'); return; }
+  const w=g=>(ratingNum(g)!=null?Math.max(ratingNum(g),0.5):5);
+  let r=Math.random()*pool.reduce((s,g)=>s+w(g),0), pick=pool[pool.length-1];
+  for(const g of pool){ r-=w(g); if(r<=0){ pick=g; break; } }
+  filters.search=''; const si=f('search'); if(si) si.value='';
+  view='bl-nf'; render();
+  const tr=document.querySelector('tr[data-id="'+pick.id+'"]');
+  if(tr){ tr.classList.add('picked'); tr.scrollIntoView({block:'center'}); setTimeout(()=>tr.classList.remove('picked'),2600); }
+}
 function onMainClick(e){
+  const sc=e.target.closest('[data-goview]'); if(sc){ resetFilters(); view=sc.dataset.goview; render(); return; }
+  const pr=e.target.closest('tr[data-goplat]'); if(pr){ resetFilters(); filters.platform=pr.dataset.goplat; const p=f('platform'); if(p) p.value=pr.dataset.goplat; view='all'; render(); return; }
   const tg=e.target.closest('[data-taggrp]'); if(tg){ openTagGroupModal(tg.dataset.taggrp); return; }
   const dg=e.target.closest('[data-delgrp]'); if(dg){ const name=dg.dataset.delgrp; if(confirm('Delete the "'+name+'" group? The games stay in your library — they just leave the group.')){ games.forEach(g=>{ if((g.group||'').trim()===name) g.group=''; }); delete groupColors[name]; saveGroupColors(); save(); render(); } return; }
   const btn=e.target.closest('button[data-act]');
@@ -963,6 +992,7 @@ function bind(){
   f('sort').addEventListener('change',e=>{ filters.sort=e.target.value; render(); });
   f('addBtn').addEventListener('click',()=>openModal(null));
   f('createGroupBtn').addEventListener('click',openGroupModal);
+  f('pickBtn').addEventListener('click',pickRandom);
   f('exportJson').addEventListener('click',exportJSON);
   f('exportCsv').addEventListener('click',exportCSV);
   f('importBtn').addEventListener('click',()=>document.getElementById('importModal').classList.add('show'));
@@ -1010,7 +1040,7 @@ function bind(){
   f('themeSel').addEventListener('change',e=>applyTheme(e.target.value));
   document.getElementById('tagGroupModal').addEventListener('click',e=>{ if(e.target.id==='tagGroupModal') closeTagGroupModal(); });
   document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeModal(); closeGroupModal(); closeTagGroupModal(); closeSteamModal(); document.getElementById('importModal').classList.remove('show'); } });
-  if(TOUCH){ const ft=document.querySelector('footer'); if(ft) ft.innerHTML='Tip: <b>tap</b> a cell to edit &#8226; auto-saves in this browser &#8226; <b>Export JSON</b> to back up.'; }
+  if(TOUCH){ const ft=document.querySelector('footer'); if(ft) ft.innerHTML='Tip: <b>tap</b> a cell to edit &#8226; auto-saves here &#8226; <b>Export JSON</b> to back up &#8226; v'+APP_VERSION; }
 }
 (function(){ const sel=f('themeSel'); if(sel){ sel.innerHTML=THEMES.map(t=>'<option>'+t+'</option>').join(''); let tv='Midnight'; try{ tv=localStorage.getItem(THEME_KEY)||'Midnight'; }catch(e){} if(THEMES.indexOf(tv)<0) tv='Midnight'; sel.value=tv; applyTheme(tv); } })();
 buildPlatformOptions(); bind(); render();
