@@ -38,14 +38,19 @@ No dependencies — the spreadsheet is read directly as zip + XML (no Excel, no 
 
 ## Releasing
 
-1. Bump the version in **two** places in `app_template.html`
-   (`<meta name="app-version">` and `const APP_VERSION`) **and** the `CACHE`
-   name at the top of `../sw.js` (so installed PWAs drop their old cache).
+1. Bump the version in **one** place: the `<meta name="app-version">` tag in
+   `app_template.html`. The build syncs the `APP_VERSION` constant and the
+   service worker cache name from it automatically.
 2. Run the build.
-3. Commit `index.html` (plus the template and `sw.js`) with a real message,
-   e.g. `v1.8.0 - short summary`.
-4. Push. GitHub Pages redeploys in about a minute; installed apps pick the new
-   version up on their next open (sometimes one extra reload).
+3. Add an entry to `CHANGELOG.md`.
+4. Commit with a [Conventional Commits](https://www.conventionalcommits.org/)
+   message — `feat:` new user-facing behavior, `fix:` bug fixes, `docs:`,
+   `ci:`, `build:`, `chore:` as appropriate, e.g.
+   `feat: pick-for-me pool chooser (v1.17.0)`.
+5. Tag the release (`git tag -a vX.Y.Z -m "summary"`) and push with
+   `--follow-tags`. The Pages workflow deploys in about a minute; installed
+   apps pick the new version up on their next open (sometimes one extra
+   reload).
 
 Verify what's actually live:
 

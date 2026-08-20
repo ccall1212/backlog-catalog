@@ -39,6 +39,26 @@ $tplText = [System.IO.File]::ReadAllText($tpl)
 if ($tplText -notmatch [regex]::Escape('/*__SEED__*/')) { throw "Template is missing the /*__SEED__*/ marker: $tpl" }
 $enc = New-Object System.Text.UTF8Encoding($false)   # UTF-8, no BOM
 
+# ---- single source of version truth: the template's app-version meta tag ----
+# Releases bump ONE place. The APP_VERSION constant and the service worker's
+# cache name are synced from it here, so they can never drift again.
+if ($tplText -notmatch '<meta name="app-version" content="([^"]+)"') { throw "Template has no app-version meta tag" }
+$version = $Matches[1]
+# fail loudly if the constants ever change shape — a silent no-op here would
+# ship a stale version, which is exactly the drift this sync exists to prevent
+if ($tplText -notmatch "const APP_VERSION = '[^']*';") { throw "APP_VERSION constant not found in template" }
+$tplBefore = $tplText
+$tplText = $tplText -replace "const APP_VERSION = '[^']*';", "const APP_VERSION = '$version';"
+# keep the source template self-consistent for human readers too
+if ($tplText -ne $tplBefore) { [System.IO.File]::WriteAllText($tpl, $tplText, (New-Object System.Text.UTF8Encoding($false))); "template APP_VERSION synced -> v$version" }
+$swPath = Join-Path $repoRoot 'sw.js'
+if (Test-Path $swPath) {
+  $sw = [System.IO.File]::ReadAllText($swPath)
+  if ($sw -notmatch "const CACHE = 'backlog-catalog-v[^']*';") { throw "CACHE constant not found in sw.js" }
+  $swNew = $sw -replace "const CACHE = 'backlog-catalog-v[^']*';", "const CACHE = 'backlog-catalog-v$version';"
+  if ($swNew -ne $sw) { [System.IO.File]::WriteAllText($swPath, $swNew, $enc); "sw.js cache synced -> v$version" }
+}
+
 # ---------------------------------------------------------------- helpers ----
 function CleanYN([string]$v){
   if($null -eq $v){return ''}
@@ -154,5 +174,4 @@ if (-not $SkipSeed) {
   }
 }
 
-$v = if ($tplText -match '<meta name="app-version" content="([^"]+)"') { $Matches[1] } else { 'unknown' }
-"Built version $v"
+"Built version $version"
