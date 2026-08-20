@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Backlog Catalog</title>
-<meta name="app-version" content="1.7.1">
+<meta name="app-version" content="1.8.0">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0f1420">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%236366f1'/><text x='32' y='43' font-size='28' text-anchor='middle' fill='white' font-family='Segoe UI,Arial,sans-serif' font-weight='700'>BC</text></svg>">
@@ -12,8 +12,9 @@
 :root{
   --bg:#0f1420;--panel:#171d2b;--panel2:#1e2535;--side:#0c111c;--line:#2a3346;--text:#e7ebf3;--muted:#8b95a9;
   --accent:#6366f1;--accent2:#4f46e5;--hot-bg:#3a2f12;--hot-text:#ffd470;--green:#34d399;--red:#f87171;
+  --stripe:rgba(255,255,255,.025);
 }
-body.theme-light{--bg:#f3f5f9;--panel:#ffffff;--panel2:#e9edf4;--side:#e6eaf2;--line:#d4dbe6;--text:#1c2434;--muted:#5d6b82;--accent:#4f46e5;--accent2:#4338ca;--hot-bg:#fdf0d2;--hot-text:#8a5b00;--green:#0a8f62;--red:#d43c3c}
+body.theme-light{--bg:#f3f5f9;--panel:#ffffff;--panel2:#e9edf4;--side:#e6eaf2;--line:#d4dbe6;--text:#1c2434;--muted:#5d6b82;--accent:#4f46e5;--accent2:#4338ca;--hot-bg:#fdf0d2;--hot-text:#8a5b00;--green:#0a8f62;--red:#d43c3c;--stripe:rgba(15,23,42,.035)}
 body.theme-forest{--bg:#0c1310;--panel:#131e18;--panel2:#1a2921;--side:#0a100d;--line:#27392f;--text:#e4efe8;--muted:#8aa595;--accent:#10b981;--accent2:#059669}
 body.theme-crimson{--bg:#150d10;--panel:#1f1418;--panel2:#2a1a20;--side:#100a0c;--line:#3a2630;--text:#f1e6ea;--muted:#a98f99;--accent:#e11d48;--accent2:#be123c}
 body.theme-slate{--bg:#131417;--panel:#1b1d22;--panel2:#23262d;--side:#0f1013;--line:#31343d;--text:#e8eaee;--muted:#8f95a3;--accent:#38bdf8;--accent2:#0ea5e9}
@@ -68,8 +69,10 @@ main{flex:1;min-height:0;overflow:auto;padding:6px 22px 24px}
 .tablewrap{border:1px solid var(--line);border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,.18)}
 table{width:100%;border-collapse:collapse;min-width:1040px}
 table.grouped{min-width:1160px}
-th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);border-right:1px solid var(--line);vertical-align:top}
+th:last-child,td:last-child{border-right:none}
 th{position:sticky;top:0;background:var(--panel);color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.03em;z-index:2}
+tbody tr:nth-child(even){background:var(--stripe)}
 tbody tr:hover{background:var(--panel)}
 td.center,th.center{text-align:center}
 td.title{font-weight:600;max-width:280px}
@@ -114,7 +117,11 @@ footer{flex-shrink:0;color:var(--muted);font-size:12px;padding:12px 22px;border-
 .dialog{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;width:100%;max-width:560px;max-height:90vh;overflow:auto;box-shadow:0 12px 40px rgba(0,0,0,.4)}
 .dialog h2{margin:0 0 16px;font-size:18px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.grid label{display:flex;flex-direction:column;gap:5px;color:var(--muted);font-size:12px}
+/* labels are block so the text and its .hint share ONE inline line — keeps every
+   form row the same height so paired inputs line up */
+.grid label{display:block;color:var(--muted);font-size:12px}
+.grid label>input,.grid label>select,.grid label>textarea,.grid label>button{display:block;width:100%;margin-top:5px}
+.grid label>div{margin-top:5px}
 .grid label.full{grid-column:1/-1}
 .hint{font-weight:400;color:var(--muted);font-size:11px}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
@@ -212,12 +219,12 @@ td[data-f],.chk{touch-action:manipulation}
       <label class="full">Game<input id="mGame" type="text" autocomplete="off"></label>
       <label class="full">Platform(s) <span class="hint">click to select</span><div id="mPlats" class="chips"></div></label>
       <label>Group <span class="hint">optional</span><select id="mGroup"></select></label>
-      <label>&nbsp;<button type="button" id="mMpBtn" class="pchip" style="margin-top:0">Multiplayer only</button></label>
-      <label class="full">Tags <span class="hint">genres &#8212; add from the list</span><div id="mTags" style="margin-top:4px"></div><select id="mTagSel" style="margin-top:6px"></select></label>
+      <label>Multiplayer only?<button type="button" id="mMpBtn" class="pchip">No</button></label>
+      <label class="full">Tags <span class="hint">genres</span><div id="mTags" style="margin-top:4px"></div><select id="mTagSel" style="margin-top:6px"></select></label>
       <label>Finished?<input id="mFin" type="text" list="ynList" autocomplete="off"></label>
       <label>Started / Played?<input id="mStarted" type="text" list="ynList" autocomplete="off"></label>
       <label>Want to Play (1&#8211;10)<input id="mWantR" type="number" min="0" max="10" step="0.5"></label>
-      <label>Final Rating (1&#8211;10) <span class="hint">needs Started/Played</span><input id="mFinal" type="number" min="0" max="10" step="0.5"></label>
+      <label>Final Rating (1&#8211;10) <span class="hint">after playing</span><input id="mFinal" type="number" min="0" max="10" step="0.5"></label>
       <label>Want to 100%?<input id="mWant" type="text" list="ynList" autocomplete="off"></label>
       <label>100% Complete?<input id="mDone" type="text" list="ynList" autocomplete="off"></label>
       <label>Replayable?<input id="mReplay" type="text" list="ynList" autocomplete="off"></label>
@@ -267,7 +274,7 @@ td[data-f],.chk{touch-action:manipulation}
 <script>
 const SEED = [];
 const LS_KEY = 'backlogCatalog.starter.v1';
-const APP_VERSION = '1.7.1';
+const APP_VERSION = '1.8.0';
 const BK_KEY = LS_KEY + '.lastBackup';
 const DEFAULT_TAGS = ['RPG','FPS','RTS','MMORPG','Platformer','Adventure','Strategy','Racing','Fighting','Puzzle','Horror','Survival'];
 const THEME_KEY = LS_KEY + '.theme';
@@ -521,7 +528,7 @@ function updateFinalState(){
   const el=f('mFinal'); if(el){ el.disabled=!ok; el.style.opacity=ok?'1':'0.45'; if(!ok) el.value=''; }
 }
 function updateMpUI(){
-  const btn=document.getElementById('mMpBtn'); if(btn) btn.classList.toggle('on', modalMp);
+  const btn=document.getElementById('mMpBtn'); if(btn){ btn.classList.toggle('on', modalMp); btn.textContent = modalMp?'Yes':'No'; }
   ['mFin','mStarted'].forEach(id=>{ const el=f(id); if(el){ el.disabled=modalMp; el.style.opacity=modalMp?'0.45':'1'; if(modalMp) el.value=''; } });
   updateFinalState();
 }
