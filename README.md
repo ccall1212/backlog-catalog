@@ -11,7 +11,7 @@ A single-file web app for tracking the video games you own, the ones you're play
 - **Track every game** across PC, Xbox, PlayStation, Nintendo (or any platform you add). One game can live on several platforms at once.
 - **One-click status** — mark a game *Finished* or *Started/Played* straight from the list.
 - **Two ratings, because they mean different things:**
-  - **Want to Play** — how much you're looking forward to it (for stuff you haven't played)
+  - **Rating** — one 1–10 score per game
   - **Final Rating** — what you actually thought (unlocks once you've started it)
   - Anything above 7 gets highlighted so standouts pop.
 - **Backlog views** — jump to *Not Finished*, *Finished*, or *Want to 100%* from the sidebar, with live counts.
@@ -52,6 +52,6 @@ Download `index.html` and open it in any browser. That's the whole app — one f
 
 ## Version
 
-Current: **v1.11.3** — see the sidebar footer for the version you're running.
+Current: **v1.12.0** — see the sidebar footer for the version you're running.
 
 <sub>Built with Claude Code.</sub>

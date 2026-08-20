@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Backlog Catalog</title>
-<meta name="app-version" content="1.11.3">
+<meta name="app-version" content="1.12.0">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0f1420">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%236366f1'/><text x='32' y='43' font-size='28' text-anchor='middle' fill='white' font-family='Segoe UI,Arial,sans-serif' font-weight='700'>BC</text></svg>">
@@ -98,7 +98,7 @@ tr.dto td{box-shadow:inset 0 2px 0 var(--accent)}
 .mp-tag{display:inline-block;font-size:10px;font-weight:700;color:var(--muted);border:1px solid var(--line);border-radius:5px;padding:0 5px;margin-left:6px;vertical-align:middle;letter-spacing:.05em}
 .mp-tag.mp-only{color:var(--red);border-color:var(--red)}
 .w100{font-size:11px;margin-left:5px;vertical-align:middle;cursor:help}
-.rwant{opacity:.7;font-style:italic}
+.yes100{color:var(--green);font-weight:700}
 .chk{background:none;border:1px solid transparent;color:var(--muted);cursor:pointer;font-size:14px;font-weight:700;width:30px;height:26px;border-radius:7px;line-height:1}
 .chk:hover{background:var(--panel2);border-color:var(--accent);color:var(--green)}
 .chk.on{color:var(--green)}
@@ -199,8 +199,7 @@ td[data-f],.chk{touch-action:manipulation}
         <select id="sort">
           <option value="group">Group (default)</option>
           <option value="title">Title A&#8211;Z</option>
-          <option value="want">Want to Play (high to low)</option>
-          <option value="final">Final Rating (high to low)</option>
+          <option value="rating">Rating (high to low)</option>
           <option value="platform">Platform</option>
         </select></label></span>
       <div class="spacer"></div>
@@ -226,10 +225,8 @@ td[data-f],.chk{touch-action:manipulation}
       <label class="full">Tags <span class="hint">genres</span><div id="mTags" style="margin-top:4px"></div><select id="mTagSel" style="margin-top:6px"></select></label>
       <label>Finished?<input id="mFin" type="text" list="ynList" autocomplete="off"></label>
       <label>Started / Played?<input id="mStarted" type="text" list="ynList" autocomplete="off"></label>
-      <label>Want to Play (1&#8211;10)<input id="mWantR" type="number" min="0" max="10" step="0.5"></label>
-      <label>Final Rating (1&#8211;10) <span class="hint">after playing</span><input id="mFinal" type="number" min="0" max="10" step="0.5"></label>
-      <label>Want to 100%?<input id="mWant" type="text" list="ynList" autocomplete="off"></label>
-      <label>100% Complete?<input id="mDone" type="text" list="ynList" autocomplete="off"></label>
+      <label>Rating (1&#8211;10)<input id="mRating" type="number" min="0" max="10" step="0.5"></label>
+      <label>100%<select id="mDone"><option value="">Not 100%</option><option value="Want">Want to 100%</option><option value="Yes">100% complete</option></select></label>
       <label>Replayable?<input id="mReplay" type="text" list="ynList" autocomplete="off"></label>
       <label class="full">Comments<textarea id="mComments" rows="2"></textarea></label>
     </div>
@@ -312,7 +309,7 @@ td[data-f],.chk{touch-action:manipulation}
 <script>
 const SEED = [];
 const LS_KEY = 'backlogCatalog.starter.v1';
-const APP_VERSION = '1.11.3';
+const APP_VERSION = '1.12.0';
 const BK_KEY = LS_KEY + '.lastBackup';
 const DEFAULT_TAGS = ['RPG','FPS','RTS','MMORPG','Platformer','Adventure','Strategy','Racing','Fighting','Puzzle','Horror','Survival','Co-op'];
 const THEME_KEY = LS_KEY + '.theme';
@@ -356,8 +353,7 @@ const TOUCH = !!(window.matchMedia && matchMedia('(pointer:coarse)').matches);
 function uid(){ try{ if(window.crypto&&crypto.randomUUID) return crypto.randomUUID(); }catch(e){} return 'id-'+Date.now()+'-'+Math.floor(Math.random()*1e9); }
 function yes(v){ return /^\s*yes/i.test(v||''); }
 function num(v){ if(v===null||v===undefined||v==='') return null; const n=Number(v); return isNaN(n)?null:n; }
-function wantNum(g){ return num(g.want); }
-function finalNum(g){ return num(g.final); }
+function ratingNum(g){ return num(g.rating); }
 function platsOf(g){ return Array.isArray(g.platforms)? g.platforms : (g.platform?[g.platform]:[]); }
 function rankPlats(ps){ return ps.slice().sort((a,b)=>((PRANK[a]==null?9:PRANK[a])-(PRANK[b]==null?9:PRANK[b]))); }
 
@@ -371,13 +367,13 @@ function mergeDupes(arr){
     const plats=[]; grp.forEach(g=>platsOf(g).forEach(p=>{ if(p && plats.indexOf(p)<0) plats.push(p); }));
     const anyYes=fld=>grp.some(g=>yes(g[fld]));
     const firstNon=fld=>{ for(const g of grp){ const v=(g[fld]==null?'':String(g[fld])).trim(); if(v) return v; } return ''; };
-    const wants=grp.map(wantNum).filter(x=>x!=null), finals=grp.map(finalNum).filter(x=>x!=null);
+    const ratings=grp.map(ratingNum).filter(x=>x!=null);
     const comments=[]; grp.forEach(g=>{ const c=(g.comments||'').trim(); if(c && comments.indexOf(c)<0) comments.push(c); });
     const tags=[]; grp.forEach(g=>{ (Array.isArray(g.tags)?g.tags:[]).forEach(t=>{ if(t && tags.indexOf(t)<0) tags.push(t); }); });
     const fin=anyYes('finished')?'Yes':firstNon('finished');
     out.push({ id:grp[0].id||uid(), title:grp[0].title, platforms:rankPlats(plats), group:firstNon('group'), ord:(grp[0].ord||0), tags:tags, mp:(grp.some(g=>g.mp==='only'||g.mp===true)?'only':(grp.some(g=>g.mp==='story')?'story':'')), finished:fin,
-      started:(yes(fin)||anyYes('started'))?'Yes':'', want100:anyYes('want100')?'Yes':firstNon('want100'),
-      done100:anyYes('done100')?'Yes':firstNon('done100'), replayable:anyYes('replayable')?'Yes':firstNon('replayable'),
+      started:(yes(fin)||anyYes('started'))?'Yes':'',
+      done100:(grp.some(g=>g.done100==='Yes')?'Yes':(grp.some(g=>g.done100==='Want')?'Want':'')), replayable:anyYes('replayable')?'Yes':firstNon('replayable'),
       want:wants.length?Math.max.apply(null,wants):null, final:finals.length?Math.max.apply(null,finals):null, comments:comments.join(' / ') });
   });
   return out;
@@ -396,15 +392,20 @@ function prep(arr, doMerge){
     g.mp = (g.mp===true||g.mp==='only') ? 'only' : (g.mp==='story' ? 'story' : '');
     if(g.mp==='only'){ g.finished=''; g.started=''; }
     else if(g.started===undefined||g.started===null) g.started=yes(g.finished)?'Yes':'';
-    if(g.want===undefined && g.final===undefined && g.rating!==undefined){
-      const rt=num(g.rating);
-      if(yes(g.started)){ g.final=rt; g.want=null; } else { g.want=rt; g.final=null; }
+    /* ONE rating (v1.12.0). Older data had want (anticipation) + final (verdict):
+       collapse to a single number, preferring the played verdict when both exist. */
+    if(g.rating===undefined || g.rating===null){
+      const fv=num(g.final), wv=num(g.want);
+      g.rating = (fv!=null) ? fv : ((wv!=null) ? wv : null);
+    } else { g.rating=num(g.rating); }
+    delete g.want; delete g.final;
+    /* ONE 100% field, tri-state: '' | 'Want' (want to 100% it) | 'Yes' (done).
+       Older data had want100 + done100 as separate Yes/No columns. */
+    if(g.done100!=='Yes' && g.done100!=='Want'){
+      const wasDone = yes(g.done100), wantsIt = yes(g.want100);
+      g.done100 = wasDone ? 'Yes' : (wantsIt ? 'Want' : '');
     }
-    if(g.want===undefined) g.want=null;
-    if(g.final===undefined) g.final=null;
-    delete g.rating;
-    if(g.mp==='only') g.final=null;
-    else if(g.final!=null && !yes(g.started) && !yes(g.finished)) g.started='Yes';
+    delete g.want100;
   });
   return doMerge ? mergeDupes(arr) : arr;
 }
@@ -428,8 +429,8 @@ function isFinished(g){ return yes(g.finished); }
 function isStarted(g){ return yes(g.started); }
 function isMp(g){ return g.mp==='only'; }
 function hasMp(g){ return g.mp==='only'||g.mp==='story'; }
-function wants100(g){ return yes(g.want100); }
-function done100(g){ return yes(g.done100); }
+function wants100(g){ return g.done100==='Want'; }
+function done100(g){ return g.done100==='Yes'; }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function setText(id,v){ const e=document.getElementById(id); if(e) e.textContent=v; }
 function allGroups(){ return Array.from(new Set(games.map(g=>(g.group||'').trim()).filter(Boolean))).sort(); }
@@ -443,8 +444,7 @@ function visibleGames(){
   const s = filters.sort;
   list.sort((a,b)=>{
     if(s==='group'){ const ga=(a.group||'').trim(), gb=(b.group||'').trim(); const ka=ga||a.title, kb=gb||b.title; const c=ka.localeCompare(kb); if(c) return c; if(ga&&ga===gb) return (a.ord||0)-(b.ord||0) || (a.title||'').localeCompare(b.title||''); return (a.title||'').localeCompare(b.title||''); }
-    if(s==='want'){ const ra=wantNum(a), rb=wantNum(b); return (rb==null?-1:rb)-(ra==null?-1:ra) || (a.title||'').localeCompare(b.title||''); }
-    if(s==='final'){ const ra=finalNum(a), rb=finalNum(b); return (rb==null?-1:rb)-(ra==null?-1:ra) || (a.title||'').localeCompare(b.title||''); }
+    if(s==='rating'){ const ra=ratingNum(a), rb=ratingNum(b); return (rb==null?-1:rb)-(ra==null?-1:ra) || (a.title||'').localeCompare(b.title||''); }
     if(s==='platform'){ return (platsOf(a)[0]||'').localeCompare(platsOf(b)[0]||'') || (a.title||'').localeCompare(b.title||''); }
     return (a.title||'').localeCompare(b.title||'');
   });
@@ -454,10 +454,11 @@ function badges(g){ return platsOf(g).map(p=>'<span class="badge '+(PLAT_CLASS[p
 function rateCell(n){ return (n!=null) ? ((n>7)?'<span class="hot">'+n+'</span>': String(n)) : ''; }
 /* one Rating column: the Final Rating once played, otherwise the Want-to-Play
    score shown fainter so verdict and anticipation stay distinguishable */
-function ratingCell(g){
-  const fin=finalNum(g); if(fin!=null) return rateCell(fin);
-  const w=wantNum(g); if(w==null) return '';
-  return '<span class="rwant" title="Want to Play (not played yet)">'+rateCell(w)+'</span>';
+function ratingCell(g){ return rateCell(ratingNum(g)); }
+function done100Cell(g){
+  if(g.done100==='Yes') return '<span class="yes100" title="100% complete">&#10003;</span>';
+  if(g.done100==='Want') return '<span class="want100" title="Want to 100% this one">&#127919;</span>';
+  return '';
 }
 function toggleCell(g,field){
   const on=yes(g[field]);
@@ -472,9 +473,9 @@ function gameCells(g, inGroup){
     +'<td class="plat" data-f="plat" title="Double-click to open editor">'+badges(g)+'</td>'
     +'<td class="center">'+statusCell(g,'finished')+'</td>'
     +'<td class="center">'+statusCell(g,'started')+'</td>'
-    +'<td class="center xtra" data-f="done100" title="Double-click to edit">'+esc(g.done100||'')+'</td>'
+    +'<td class="center xtra" data-f="done100" title="Double-click to edit">'+done100Cell(g)+'</td>'
     +'<td class="center xtra" data-f="replayable" title="Double-click to edit">'+esc(g.replayable||'')+'</td>'
-    +'<td class="center" data-f="'+(played?'final':'want')+'" title="'+(played?'Final Rating - double-click to edit':'Want to Play - double-click to edit')+'">'+ratingCell(g)+'</td>'
+    +'<td class="center" data-f="rating" title="Rating - double-click to edit">'+ratingCell(g)+'</td>'
     +'<td class="comments xtra" data-f="comments" title="Double-click to edit">'+esc(g.comments||'')+'</td>'
     +'<td class="actions">'+arrows+'<button class="icon" data-act="edit" data-id="'+g.id+'" title="Edit">&#9998;</button>'
     +'<button class="icon danger" data-act="del" data-id="'+g.id+'" title="Delete">&#128465;</button></td>';
@@ -508,12 +509,12 @@ function statsHtml(){
   const notfin=games.filter(g=>!isFinished(g)&&!isMp(g)).length;
   const playing=games.filter(g=>isStarted(g)&&!isFinished(g)&&!isMp(g)).length;
   const groupCount=allGroups().length;
-  const avgW=avgOf(games,'want'), avgF=avgOf(games,'final');
+  const avgR=avgOf(games,'rating');
   const extra=Array.from(new Set([].concat.apply([],games.map(platsOf)).filter(p=>p&&PLATFORMS.indexOf(p)<0)));
   let rows='';
-  PLATFORMS.concat(extra).forEach(p=>{ const gs=games.filter(g=>platsOf(g).indexOf(p)>=0); if(!gs.length) return; const a=avgOf(gs,'final');
+  PLATFORMS.concat(extra).forEach(p=>{ const gs=games.filter(g=>platsOf(g).indexOf(p)>=0); if(!gs.length) return; const a=avgOf(gs,'rating');
     rows+='<tr><td><span class="badge '+(PLAT_CLASS[p]||'')+'">'+esc(p)+'</span></td><td class="center">'+gs.length+'</td><td class="center">'+gs.filter(isFinished).length+'</td><td class="center">'+gs.filter(done100).length+'</td><td class="center">'+(a!=null?a.toFixed(1):'&#8211;')+'</td></tr>'; });
-  return '<div class="cards">'+statCard('Total games',total)+statCard('Finished',fin)+statCard('Playing now',playing)+statCard('Not finished',notfin)+statCard('Multiplayer',mp)+statCard('Groups',groupCount)+statCard('100% complete',done)+statCard('Want to 100%',want)+statCard('Avg want-to-play',avgW!=null?avgW.toFixed(1):'&#8211;')+statCard('Avg final rating',avgF!=null?avgF.toFixed(1):'&#8211;')+'</div>'
+  return '<div class="cards">'+statCard('Total games',total)+statCard('Finished',fin)+statCard('Playing now',playing)+statCard('Not finished',notfin)+statCard('Multiplayer',mp)+statCard('Groups',groupCount)+statCard('100% complete',done)+statCard('Want to 100%',want)+statCard('Avg rating',avgR!=null?avgR.toFixed(1):'&#8211;')+'</div>'
     +'<h3>By platform</h3><div class="tablewrap"><table><thead><tr><th>Platform</th><th class="center">Games</th><th class="center">Finished</th><th class="center">100%</th><th class="center">Avg final</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 function render(){
@@ -570,10 +571,7 @@ function fillGroupSelect(current){
   sel.innerHTML='<option value="">(none)</option>'+gs.map(g=>'<option value="'+esc(g)+'">'+esc(g)+'</option>').join('')+'<option value="__new__">+ New group…</option>';
   sel.value=current||'';
 }
-function updateFinalState(){
-  const ok = (yes(f('mStarted').value) || yes(f('mFin').value)) && modalMp!=='only';
-  const el=f('mFinal'); if(el){ el.disabled=!ok; el.style.opacity=ok?'1':'0.45'; if(!ok) el.value=''; }
-}
+function updateFinalState(){ /* rating is no longer gated on having played (v1.12.0) */ }
 function updateMpUI(){
   const sel=document.getElementById('mMpSel'); if(sel) sel.value=modalMp;
   const only = (modalMp==='only');
@@ -582,7 +580,7 @@ function updateMpUI(){
 }
 function openModal(id){
   editingId=id;
-  const g = id? games.find(x=>x.id===id) : {title:'',platforms:(filters.platform!=='all'?[filters.platform]:['PC']),group:'',tags:[],mp:'',finished:'',started:'',want100:'',done100:'',replayable:'',want:null,final:null,comments:''};
+  const g = id? games.find(x=>x.id===id) : {title:'',platforms:(filters.platform!=='all'?[filters.platform]:['PC']),group:'',tags:[],mp:'',finished:'',started:'',done100:'',replayable:'',rating:null,comments:''};
   f('mTitleHdr').textContent = id?'Edit game':'Add game';
   f('mGame').value=g.title||''; f('mGame').classList.remove('err');
   modalPlats=platsOf(g).slice(); renderPlatChips();
@@ -590,8 +588,8 @@ function openModal(id){
   modalTags=(g.tags||[]).slice(); renderModalTags();
   modalMp = g.mp||'';
   f('mFin').value=g.finished||''; f('mStarted').value=g.started||'';
-  f('mWant').value=g.want100||''; f('mDone').value=g.done100||''; f('mReplay').value=g.replayable||'';
-  f('mWantR').value=(g.want===0||g.want)?g.want:''; f('mFinal').value=(g.final===0||g.final)?g.final:'';
+  f('mDone').value=(g.done100==='Yes'||g.done100==='Want')?g.done100:''; f('mReplay').value=g.replayable||'';
+  f('mRating').value=(g.rating===0||g.rating)?g.rating:'';
   f('mComments').value=g.comments||'';
   updateMpUI();
   document.getElementById('modal').classList.add('show'); f('mGame').focus();
@@ -603,11 +601,11 @@ function saveModal(){
   const dup=games.some(x=>x.id!==editingId && (x.title||'').trim().toLowerCase()===title.toLowerCase());
   if(dup && !confirm('Another game is already called "'+title+'". Save anyway?')) return;
   const platforms=modalPlats.slice();
-  const want=num(f('mWantR').value);
+  const rating=num(f('mRating').value);
   const startedYes = (yes(f('mStarted').value) || yes(f('mFin').value)) && modalMp!=='only';
-  const final = startedYes ? num(f('mFinal').value) : null;
+
   let group=f('mGroup').value; if(group==='__new__') group='';
-  const data={ title, platforms:rankPlats(platforms), group, tags:modalTags.slice(), mp:modalMp, finished:f('mFin').value.trim(), started:f('mStarted').value.trim(), want100:f('mWant').value.trim(), done100:f('mDone').value.trim(), replayable:f('mReplay').value.trim(), want, final, comments:f('mComments').value.trim() };
+  const data={ title, platforms:rankPlats(platforms), group, tags:modalTags.slice(), mp:modalMp, finished:f('mFin').value.trim(), started:f('mStarted').value.trim(), done100:f('mDone').value, replayable:f('mReplay').value.trim(), rating, comments:f('mComments').value.trim() };
   if(modalMp==='only'){ data.finished=''; data.started=''; data.final=null; }
   else if(yes(data.finished) && !data.started) data.started='Yes';
   if(editingId){ const t=games.find(x=>x.id===editingId); delete t.platform; delete t.rating; delete t.series; Object.assign(t, data); }
@@ -619,7 +617,7 @@ function toggleField(id,field){
   const g=games.find(x=>x.id===id); if(!g || isMp(g)) return;
   const on=yes(g[field]); g[field]= on?'No':'Yes';
   if(field==='finished' && !on) g.started='Yes';
-  if(field==='started' && on && !yes(g.finished)) g.final=null;
+
   save(); render();
 }
 
@@ -653,13 +651,13 @@ function csvCell(v){ v=(v==null?'':String(v)); return /[",\n]/.test(v)? '"'+v.re
 function exportCSV(){
   const head=['Game','Group','Tags','Platform(s)','Multiplayer','Finished?','Started/Played?','Want to 100%?','100% Complete?','Replayable?','Want to Play (1-10)','Final Rating (1-10)','Comments'];
   const lines=[head.map(csvCell).join(',')];
-  games.forEach(g=>{ lines.push([g.title, g.group, (g.tags||[]).join('; '), platsOf(g).join('; '), (g.mp==='only'?'Multiplayer only':(g.mp==='story'?'Multiplayer + Story':'')), g.finished, g.started, g.want100, g.done100, g.replayable, g.want, g.final, g.comments].map(csvCell).join(',')); });
+  games.forEach(g=>{ lines.push([g.title, g.group, (g.tags||[]).join('; '), platsOf(g).join('; '), (g.mp==='only'?'Multiplayer only':(g.mp==='story'?'Multiplayer + Story':'')), g.finished, g.started, g.done100, g.replayable, g.rating, g.comments].map(csvCell).join(',')); });
   download('games.csv', lines.join('\r\n'), 'text/csv');
 }
 function importJSON(e){
   const file=e.target.files[0]; if(!file) return;
   const reader=new FileReader();
-  reader.onload=()=>{ try{ const parsed=JSON.parse(reader.result); const a=Array.isArray(parsed)?parsed:((parsed&&Array.isArray(parsed.games))?parsed.games:null); if(!a) throw new Error('File is not a games list'); if(confirm('Import '+a.length+' games? This replaces your current '+games.length+'.')){ if(parsed&&!Array.isArray(parsed)&&parsed.groupColors&&typeof parsed.groupColors==='object'){ groupColors={}; Object.keys(parsed.groupColors).forEach(k=>{ const v=parsed.groupColors[k]; if(typeof v==='string'&&/^#[0-9a-fA-F]{6}$/.test(v)) groupColors[k]=v; }); saveGroupColors(); } games=prep(a.map(x=>Object.assign({title:'',group:'',ord:0,tags:[],mp:'',finished:'',want100:'',done100:'',replayable:'',comments:''},x)), true); save(); view='all'; buildPlatformOptions(); render(); } }catch(err){ alert('Could not import: '+err.message); } e.target.value=''; };
+  reader.onload=()=>{ try{ const parsed=JSON.parse(reader.result); const a=Array.isArray(parsed)?parsed:((parsed&&Array.isArray(parsed.games))?parsed.games:null); if(!a) throw new Error('File is not a games list'); if(confirm('Import '+a.length+' games? This replaces your current '+games.length+'.')){ if(parsed&&!Array.isArray(parsed)&&parsed.groupColors&&typeof parsed.groupColors==='object'){ groupColors={}; Object.keys(parsed.groupColors).forEach(k=>{ const v=parsed.groupColors[k]; if(typeof v==='string'&&/^#[0-9a-fA-F]{6}$/.test(v)) groupColors[k]=v; }); saveGroupColors(); } games=prep(a.map(x=>Object.assign({title:'',group:'',ord:0,tags:[],mp:'',finished:'',done100:'',replayable:'',rating:null,comments:''},x)), true); save(); view='all'; buildPlatformOptions(); render(); } }catch(err){ alert('Could not import: '+err.message); } e.target.value=''; };
   reader.readAsText(file);
 }
 /* ---- Steam import (relay fetch or page paste; ALWAYS a non-destructive merge) ---- */
@@ -748,7 +746,7 @@ function steamMerge(list){
         if(perfect){ if(upgradable(ex.done100)){ ex.done100='Yes'; res.marked++; } if(upgradable(ex.finished)) ex.finished='Yes'; if(upgradable(ex.started)) ex.started='Yes'; }
       }
     } else {
-      const ng={ id:uid(), title:s.title, platforms:['PC'], group:'', ord:0, tags:[], mp:'', finished:perfect?'Yes':'', started:(sp||perfect)?'Yes':'', want100:'', done100:perfect?'Yes':'', replayable:'', want:null, final:null, comments:'' };
+      const ng={ id:uid(), title:s.title, platforms:['PC'], group:'', ord:0, tags:[], mp:'', finished:perfect?'Yes':'', started:(sp||perfect)?'Yes':'', done100:perfect?'Yes':'', replayable:'', rating:null, comments:'' };
       games.push(ng); byNorm.set(normTitle(ng.title), ng);
       res.added++; if(perfect) res.marked++;
     }
@@ -855,18 +853,18 @@ function onCellDblClick(e){
   const g=games.find(x=>x.id===tr.dataset.id); if(!g) return;
   const field=td.dataset.f;
   if(field==='plat'){ openModal(g.id); return; }
-  if(field==='final'){
-    if(isMp(g)) return;
-    if(!(isStarted(g)||isFinished(g))){ alert('Final Rating unlocks once the game is marked Started/Played.'); return; }
-  }
   if(td.querySelector('input,select')) return;
   startCellEdit(td,g,field);
 }
 function startCellEdit(td,g,field){
-  const type=(field==='want'||field==='final')?'num':((field==='want100'||field==='done100'||field==='replayable')?'yn':'text');
+  const type=(field==='rating')?'num':((field==='done100')?'pct':((field==='replayable')?'yn':'text'));
   const cur=(type==='num')?((g[field]===0||g[field])?String(g[field]):''):(g[field]||'');
   let el;
-  if(type==='yn'){
+  if(type==='pct'){
+    el=document.createElement('select');
+    [['','—'],['Want','Want to 100%'],['Yes','100% complete']].forEach(p=>{ const o=document.createElement('option'); o.value=p[0]; o.textContent=p[1]; el.appendChild(o); });
+    el.value=(cur==='Yes'||cur==='Want')?cur:'';
+  } else if(type==='yn'){
     el=document.createElement('select');
     [['','—'],['Yes','Yes'],['No','No'],['N/A','N/A']].forEach(p=>{ const o=document.createElement('option'); o.value=p[0]; o.textContent=p[1]; el.appendChild(o); });
     if(cur && ['Yes','No','N/A'].indexOf(cur)<0){ const o=document.createElement('option'); o.value=cur; o.textContent=cur; el.appendChild(o); }
@@ -884,7 +882,7 @@ function startCellEdit(td,g,field){
     let v=el.value;
     if(type==='num'){ v=String(v).trim(); v=(v==='')?null:Number(v); if(v!=null&&isNaN(v)) v=null; if(v!=null) v=Math.max(0,Math.min(10,v));
       g[field]=v;
-      if(field==='final'&&v!=null&&!yes(g.started)&&!yes(g.finished)) g.started='Yes';
+
     }
     else if(field==='title'){ const t=String(v).trim(); if(t){ const dup=games.some(x=>x.id!==g.id && (x.title||'').trim().toLowerCase()===t.toLowerCase()); if(!dup || confirm('Another game is already called "'+t+'". Keep this name anyway?')) g.title=t; } }
     else { g[field]=String(v).trim(); }
