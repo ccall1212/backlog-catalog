@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Backlog Catalog</title>
-<meta name="app-version" content="1.10.0">
+<meta name="app-version" content="1.10.1">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0f1420">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%236366f1'/><text x='32' y='43' font-size='28' text-anchor='middle' fill='white' font-family='Segoe UI,Arial,sans-serif' font-weight='700'>BC</text></svg>">
@@ -277,7 +277,7 @@ td[data-f],.chk{touch-action:manipulation}
 <script>
 const SEED = [/*__SEED__*/];
 const LS_KEY = 'gamesLibrary.v1';
-const APP_VERSION = '1.10.0';
+const APP_VERSION = '1.10.1';
 const BK_KEY = LS_KEY + '.lastBackup';
 const DEFAULT_TAGS = ['RPG','FPS','RTS','MMORPG','Platformer','Adventure','Strategy','Racing','Fighting','Puzzle','Horror','Survival','Co-op'];
 const THEME_KEY = LS_KEY + '.theme';
@@ -444,7 +444,7 @@ function gameCells(g, inGroup){
     +'<td class="actions">'+arrows+'<button class="icon" data-act="edit" data-id="'+g.id+'" title="Edit">&#9998;</button>'
     +'<button class="icon danger" data-act="del" data-id="'+g.id+'" title="Delete">&#128465;</button></td>';
 }
-const HEAD_MAIN = '<th>Game</th><th>Platform</th><th class="center">Finished</th><th class="center">Started/Played</th><th class="center xtra">100%?</th><th class="center xtra">Replay</th><th class="center">Rating</th><th class="xtra">Comments</th><th></th>';
+const HEAD_MAIN = '<th>Game</th><th>Platform</th><th class="center">Finished</th><th class="center">Started/Played</th><th class="center xtra">100%</th><th class="center xtra">Replay</th><th class="center">Rating</th><th class="xtra">Comments</th><th></th>';
 function tableHtml(list){
   if(!list.length) return '<div class="empty">Nothing here yet. Click <b>+ Add game</b> to start.</div>';
   return '<div class="tablewrap"><table><thead><tr>'+HEAD_MAIN+'</tr></thead><tbody>'
