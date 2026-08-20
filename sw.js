@@ -1,5 +1,5 @@
 /* Backlog Catalog service worker — bump CACHE on every release (see build/README.md) */
-const CACHE = 'backlog-catalog-v1.11.2';
+const CACHE = 'backlog-catalog-v1.11.3';
 const ASSETS = ['.', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {

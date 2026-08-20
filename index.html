@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Backlog Catalog</title>
-<meta name="app-version" content="1.11.2">
+<meta name="app-version" content="1.11.3">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0f1420">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%236366f1'/><text x='32' y='43' font-size='28' text-anchor='middle' fill='white' font-family='Segoe UI,Arial,sans-serif' font-weight='700'>BC</text></svg>">
@@ -312,7 +312,7 @@ td[data-f],.chk{touch-action:manipulation}
 <script>
 const SEED = [];
 const LS_KEY = 'backlogCatalog.starter.v1';
-const APP_VERSION = '1.11.2';
+const APP_VERSION = '1.11.3';
 const BK_KEY = LS_KEY + '.lastBackup';
 const DEFAULT_TAGS = ['RPG','FPS','RTS','MMORPG','Platformer','Adventure','Strategy','Racing','Fighting','Puzzle','Horror','Survival','Co-op'];
 const THEME_KEY = LS_KEY + '.theme';
@@ -702,9 +702,19 @@ async function steamFetchAll(profileInput, status){
   // check achievements on EVERY game, not just played ones: rounding once hid
   // a minutes-long game, and Steam can report 0 playtime for old/shared games
   // that are still 100%-completed
-  const queue=list.slice(); let done=0;
-  async function w(){ while(queue.length){ const g=queue.shift(); try{ const a=await j('/achievements?steamid='+sid+'&appid='+g.appid); if(a && a.total>0){ g.ach=a.achieved; g.total=a.total; } }catch(e){} done++; if(done%5===0||!queue.length) status('Checking achievements… '+done+'/'+list.length); } }
+  const queue=list.slice(); let done=0, failed=0;
+  // Steam intermittently drops calls under parallel load; retry each check up
+  // to 3 times with backoff, and COUNT what still fails so the preview can be
+  // honest about it instead of silently importing a game as "no achievements"
+  async function w(){ while(queue.length){ const g=queue.shift(); let ok=false;
+    for(let t=0;t<3 && !ok;t++){
+      try{ const a=await j('/achievements?steamid='+sid+'&appid='+g.appid); if(a){ if(a.total>0){ g.ach=a.achieved; g.total=a.total; } ok=true; } }
+      catch(e){ if(t<2) await new Promise(r=>setTimeout(r,400*(t+1))); }
+    }
+    if(!ok) failed++;
+    done++; if(done%5===0||!queue.length) status('Checking achievements… '+done+'/'+list.length); } }
   await Promise.all([w(),w(),w(),w(),w(),w()]);
+  list.failedChecks=failed;
   return list;
 }
 function steamIsPerfect(s){ return s.total!=null && s.total>0 && s.ach===s.total; }
@@ -773,7 +783,9 @@ function showSteamPreview(list, mySession){
   f('stStatus').textContent='';
   const pv=f('stPreview');
   pv.style.display='';
-  pv.innerHTML='<b>'+list.length+'</b> games found &#8212; <b>'+p.match+'</b> already in your library (will be updated, never overwritten), <b>'+p.nw+'</b> new (added as PC), <b>'+p.perfect+'</b> perfect (marked 100%).<div class="hint" style="margin-top:6px">Ratings, comments, groups and tags on existing games are untouched. Nothing is saved until you click Apply.</div>';
+  pv.innerHTML='<b>'+list.length+'</b> games found &#8212; <b>'+p.match+'</b> already in your library (will be updated, never overwritten), <b>'+p.nw+'</b> new (added as PC), <b>'+p.perfect+'</b> perfect (marked 100%).'
+    +((list.failedChecks>0)?'<div style="margin-top:6px;color:var(--hot-text)">&#9888; '+list.failedChecks+' game'+(list.failedChecks===1?'':'s')+' couldn\'t be achievement-checked (Steam hiccup). Applying is still safe &#8212; run the import again later to fill those in.</div>':'')
+    +'<div class="hint" style="margin-top:6px">Ratings, comments, groups and tags on existing games are untouched. Nothing is saved until you click Apply.</div>';
   f('stGo').style.display='none'; f('stApply').style.display='';
 }
 async function steamGo(){
