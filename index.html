@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Backlog Catalog</title>
-<meta name="app-version" content="1.8.0">
+<meta name="app-version" content="1.9.0">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0f1420">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%236366f1'/><text x='32' y='43' font-size='28' text-anchor='middle' fill='white' font-family='Segoe UI,Arial,sans-serif' font-weight='700'>BC</text></svg>">
@@ -96,6 +96,8 @@ tr.dto td{box-shadow:inset 0 2px 0 var(--accent)}
 .na{color:var(--muted);text-decoration:line-through}
 .mp-no{color:var(--red);font-size:16px;line-height:1}
 .mp-tag{display:inline-block;font-size:10px;font-weight:700;color:var(--muted);border:1px solid var(--line);border-radius:5px;padding:0 5px;margin-left:6px;vertical-align:middle;letter-spacing:.05em}
+.w100{font-size:11px;margin-left:5px;vertical-align:middle;cursor:help}
+.rwant{opacity:.7;font-style:italic}
 .chk{background:none;border:1px solid transparent;color:var(--muted);cursor:pointer;font-size:14px;font-weight:700;width:30px;height:26px;border-radius:7px;line-height:1}
 .chk:hover{background:var(--panel2);border-color:var(--accent);color:var(--green)}
 .chk.on{color:var(--green)}
@@ -219,7 +221,7 @@ td[data-f],.chk{touch-action:manipulation}
       <label class="full">Game<input id="mGame" type="text" autocomplete="off"></label>
       <label class="full">Platform(s) <span class="hint">click to select</span><div id="mPlats" class="chips"></div></label>
       <label>Group <span class="hint">optional</span><select id="mGroup"></select></label>
-      <label>Multiplayer only?<button type="button" id="mMpBtn" class="pchip">No</button></label>
+      <label>Multiplayer only? <span class="hint">no story to finish</span><button type="button" id="mMpBtn" class="pchip">No</button></label>
       <label class="full">Tags <span class="hint">genres</span><div id="mTags" style="margin-top:4px"></div><select id="mTagSel" style="margin-top:6px"></select></label>
       <label>Finished?<input id="mFin" type="text" list="ynList" autocomplete="off"></label>
       <label>Started / Played?<input id="mStarted" type="text" list="ynList" autocomplete="off"></label>
@@ -274,9 +276,9 @@ td[data-f],.chk{touch-action:manipulation}
 <script>
 const SEED = [];
 const LS_KEY = 'backlogCatalog.starter.v1';
-const APP_VERSION = '1.8.0';
+const APP_VERSION = '1.9.0';
 const BK_KEY = LS_KEY + '.lastBackup';
-const DEFAULT_TAGS = ['RPG','FPS','RTS','MMORPG','Platformer','Adventure','Strategy','Racing','Fighting','Puzzle','Horror','Survival'];
+const DEFAULT_TAGS = ['RPG','FPS','RTS','MMORPG','Platformer','Adventure','Strategy','Racing','Fighting','Puzzle','Horror','Survival','Multiplayer','Co-op'];
 const THEME_KEY = LS_KEY + '.theme';
 const THEMES = ['Midnight','Light','Forest','Crimson','Slate'];
 const GC_KEY = LS_KEY + '.groupColors';
@@ -411,28 +413,34 @@ function visibleGames(){
 }
 function badges(g){ return platsOf(g).map(p=>'<span class="badge '+(PLAT_CLASS[p]||'')+'">'+esc(p)+'</span>').join(''); }
 function rateCell(n){ return (n!=null) ? ((n>7)?'<span class="hot">'+n+'</span>': String(n)) : ''; }
+/* one Rating column: the Final Rating once played, otherwise the Want-to-Play
+   score shown fainter so verdict and anticipation stay distinguishable */
+function ratingCell(g){
+  const fin=finalNum(g); if(fin!=null) return rateCell(fin);
+  const w=wantNum(g); if(w==null) return '';
+  return '<span class="rwant" title="Want to Play (not played yet)">'+rateCell(w)+'</span>';
+}
 function toggleCell(g,field){
   const on=yes(g[field]);
   const tip = field==='finished' ? (on?'Finished — click to undo':'Click to mark finished') : (on?'Played — click to clear':'Click to mark started/played');
   return '<button class="chk'+(on?' on':'')+'" data-act="tog" data-field="'+field+'" data-id="'+g.id+'" title="'+tip+'">'+(on?'&#10003;':'&#8211;')+'</button>';
 }
-function statusCell(g,field){ if(isMp(g)) return '<span class="mp-no" title="Multiplayer only — N/A">&#8856;</span>'; return toggleCell(g,field); }
+function statusCell(g,field){ if(isMp(g)) return '<span class="mp-no" title="Multiplayer only — no story to finish">&#8856;</span>'; return toggleCell(g,field); }
 function gameCells(g, inGroup){
   const arrows = (inGroup && TOUCH) ? '<button class="icon" data-act="up" data-id="'+g.id+'" title="Move up">&#9650;</button><button class="icon" data-act="down" data-id="'+g.id+'" title="Move down">&#9660;</button>' : '';
-  return '<td class="title" data-f="title" title="Double-click to edit">'+esc(g.title)+(isMp(g)?' <span class="mp-tag">MP</span>':'')+((g.tags&&g.tags.length)?'<div class="tagline">'+g.tags.map(t=>'<span class="tagb" style="--th:'+tagHue(t)+'">'+esc(t)+'</span>').join('')+'</div>':'')+'</td>'
+  const played = isStarted(g) || isFinished(g);
+  return '<td class="title" data-f="title" title="Double-click to edit">'+esc(g.title)+(isMp(g)?' <span class="mp-tag" title="Multiplayer only - no story to finish">MP</span>':'')+(wants100(g)?' <span class="w100" title="Want to 100% this one">&#127919;</span>':'')+((g.tags&&g.tags.length)?'<div class="tagline">'+g.tags.map(t=>'<span class="tagb" style="--th:'+tagHue(t)+'">'+esc(t)+'</span>').join('')+'</div>':'')+'</td>'
     +'<td class="plat" data-f="plat" title="Double-click to open editor">'+badges(g)+'</td>'
     +'<td class="center">'+statusCell(g,'finished')+'</td>'
     +'<td class="center">'+statusCell(g,'started')+'</td>'
-    +'<td class="center xtra" data-f="want100" title="Double-click to edit">'+esc(g.want100||'')+'</td>'
     +'<td class="center xtra" data-f="done100" title="Double-click to edit">'+esc(g.done100||'')+'</td>'
     +'<td class="center xtra" data-f="replayable" title="Double-click to edit">'+esc(g.replayable||'')+'</td>'
-    +'<td class="center" data-f="want" title="Double-click to edit">'+rateCell(wantNum(g))+'</td>'
-    +'<td class="center" data-f="final" title="Double-click to edit">'+rateCell(finalNum(g))+'</td>'
+    +'<td class="center" data-f="'+(played?'final':'want')+'" title="'+(played?'Final Rating - double-click to edit':'Want to Play - double-click to edit')+'">'+ratingCell(g)+'</td>'
     +'<td class="comments xtra" data-f="comments" title="Double-click to edit">'+esc(g.comments||'')+'</td>'
     +'<td class="actions">'+arrows+'<button class="icon" data-act="edit" data-id="'+g.id+'" title="Edit">&#9998;</button>'
     +'<button class="icon danger" data-act="del" data-id="'+g.id+'" title="Delete">&#128465;</button></td>';
 }
-const HEAD_MAIN = '<th>Game</th><th>Platform</th><th class="center">Finished</th><th class="center">Started/Played</th><th class="center xtra">Want 100%</th><th class="center xtra">100%?</th><th class="center xtra">Replay</th><th class="center">Want to Play</th><th class="center">Final Rating</th><th class="xtra">Comments</th><th></th>';
+const HEAD_MAIN = '<th>Game</th><th>Platform</th><th class="center">Finished</th><th class="center">Started/Played</th><th class="center xtra">100%?</th><th class="center xtra">Replay</th><th class="center">Rating</th><th class="xtra">Comments</th><th></th>';
 function tableHtml(list){
   if(!list.length) return '<div class="empty">Nothing here yet. Click <b>+ Add game</b> to start.</div>';
   return '<div class="tablewrap"><table><thead><tr>'+HEAD_MAIN+'</tr></thead><tbody>'
