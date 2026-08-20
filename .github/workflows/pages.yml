@@ -1,0 +1,51 @@
+# Explicit GitHub Pages deployment.
+#
+# Why this exists: the built-in "deploy from branch" builder repeatedly
+# stalled silently after frequent pushes (no failed run, just no run),
+# leaving the live site versions behind main. An Actions-driven deploy is
+# triggered reliably on every push and shows its status in the Actions tab.
+#
+# One-time setup: repo Settings -> Pages -> Build and deployment ->
+# Source: "GitHub Actions".
+
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # manual "Run workflow" button as a fallback
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never run two deploys at once; a newer push supersedes an in-flight one.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+        with:
+          # switch the repo's Pages source to "GitHub Actions" automatically
+          # on first run, so no manual Settings toggle is required
+          enablement: true
+      # stage ONLY the site files - uploading the repo root would publish
+      # .git/ and .github/ to the live origin (dead weight and mild exposure)
+      - name: Stage site files
+        run: |
+          mkdir _site
+          cp index.html sw.js manifest.webmanifest icon-192.png icon-512.png _site/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
