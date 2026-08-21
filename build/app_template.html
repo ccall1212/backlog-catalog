@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Backlog Catalog</title>
-<meta name="app-version" content="1.20.0">
+<meta name="app-version" content="1.21.0">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0f1420">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%236366f1'/><text x='32' y='43' font-size='28' text-anchor='middle' fill='white' font-family='Segoe UI,Arial,sans-serif' font-weight='700'>BC</text></svg>">
@@ -162,6 +162,15 @@ body.theme-light .tagb[style]{border-color:hsl(var(--th),45%,60%);color:hsl(var(
 .cellEdit{width:100%;min-width:56px;padding:4px 6px;font-size:13px}
 td[data-f]{cursor:cell}
 td[data-f],.chk{touch-action:manipulation}
+/* ---- title autocomplete ---- */
+.sugwrap{position:relative}
+.sug{position:absolute;left:0;right:0;top:100%;z-index:60;background:var(--panel);border:1px solid var(--line);border-radius:12px;margin-top:4px;padding:4px;max-height:290px;overflow:auto;box-shadow:0 14px 34px rgba(0,0,0,.5)}
+.sugrow{display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;border-radius:9px;padding:6px 8px;cursor:pointer;font-family:inherit;color:var(--text);text-align:left}
+.sugrow:hover,.sugrow.on{background:var(--panel2)}
+.sugrow img{width:30px;height:42px;object-fit:cover;border-radius:5px;flex:0 0 auto;background:var(--panel2)}
+.sugrow .sgt{font-size:13px;font-weight:600;line-height:1.2}
+.sugrow .sgd{font-size:11px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.sugnote{padding:7px 9px;font-size:12px;color:var(--muted)}
 /* ---- cover candidate picker ---- */
 .cpgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px;max-height:56vh;overflow:auto}
 .cpick{background:none;border:1px solid var(--line);border-radius:12px;padding:7px;cursor:pointer;font-family:inherit;color:var(--text);display:flex;flex-direction:column;gap:6px;transition:transform .14s,border-color .14s}
@@ -325,7 +334,7 @@ td[data-f],.chk{touch-action:manipulation}
   <div class="dialog">
     <h2 id="mTitleHdr">Add game</h2>
     <div class="grid">
-      <label class="full">Game<input id="mGame" type="text" autocomplete="off"></label>
+      <label class="full sugwrap">Game <span class="hint">start typing &#8212; suggestions fill in the correct name and its cover</span><input id="mGame" type="text" autocomplete="off"><div id="mSug" class="sug" style="display:none"></div></label>
       <label class="full">Platform(s) <span class="hint">click to select</span><div id="mPlats" class="chips"></div></label>
       <label>Group <span class="hint">optional</span><select id="mGroup"></select></label>
       <label>Multiplayer <span class="hint">optional</span><select id="mMpSel"><option value="">No multiplayer</option><option value="story">Multiplayer + Story</option><option value="only">Multiplayer only</option></select></label>
@@ -466,7 +475,7 @@ td[data-f],.chk{touch-action:manipulation}
 'use strict';
 const SEED = [/*__SEED__*/];
 const LS_KEY = 'gamesLibrary.v1';
-const APP_VERSION = '1.20.0';
+const APP_VERSION = '1.21.0';
 const BK_KEY = LS_KEY + '.lastBackup';
 const DEFAULT_TAGS = ['RPG','FPS','RTS','MMORPG','Platformer','Adventure','Strategy','Racing','Fighting','Puzzle','Horror','Survival','Co-op'];
 const THEME_KEY = LS_KEY + '.theme';
@@ -823,7 +832,7 @@ function openModal(id){
   updateMpUI();
   document.getElementById('modal').classList.add('show'); f('mGame').focus();
 }
-function closeModal(){ document.getElementById('modal').classList.remove('show'); editingId=null; }
+function closeModal(){ hideSug(); document.getElementById('modal').classList.remove('show'); editingId=null; }
 function saveModal(){
   const title=f('mGame').value.trim();
   if(!title){ f('mGame').classList.add('err'); f('mGame').focus(); return; }
@@ -1356,6 +1365,52 @@ function pickRandom(){
   const tr=document.querySelector('tr[data-id="'+pick.id+'"]');
   if(tr){ tr.classList.add('picked'); tr.scrollIntoView({block:'center'}); setTimeout(()=>tr.classList.remove('picked'),2600); }
 }
+/* ---- title autocomplete ----------------------------------------------------
+   Typing a game name searches Wikipedia and offers matches with their cover.
+   Picking one writes the correctly-spelled title AND fills the cover field, so
+   a new game is named right and illustrated in a single step. */
+function cleanWikiTitle(t){ return String(t||'').replace(/\s*\((?:\d{4}\s+)?video game\)\s*$/i,'').trim(); }
+let sugTimer=null, sugList=[], sugIdx=-1, sugSeq=0;
+function hideSug(){ const b=f('mSug'); if(b){ b.style.display='none'; b.innerHTML=''; } sugList=[]; sugIdx=-1; }
+function paintSug(){
+  const b=f('mSug');
+  b.innerHTML=sugList.map((s,i)=>'<button type="button" class="sugrow'+(i===sugIdx?' on':'')+'" data-sug="'+i+'">'
+    +(s.img?'<img src="'+esc(s.img)+'" alt="" loading="lazy">':'<img alt="">')
+    +'<span><span class="sgt">'+esc(s.title)+'</span><br><span class="sgd">'+esc(s.desc||'')+'</span></span></button>').join('');
+  b.style.display='block';
+}
+async function runSug(q){
+  const mySeq=++sugSeq;                       // ignore results from stale keystrokes
+  try{
+    // prefixsearch is the autocomplete-grade endpoint: it matches partial titles
+    // and tolerates typos ("assassins creed brotherhod" -> Assassin's Creed:
+    // Brotherhood), where full-text search returns nothing for either. Note PI
+    // already carries prop=pageimages; adding a second prop= breaks the query.
+    let s=await wikiJson('action=query&generator=prefixsearch&gpslimit=7&gpssearch='+encodeURIComponent(q)+PI);
+    let sp=(s.query&&s.query.pages)||{};
+    if(!Object.keys(sp).length){                       // nothing by prefix: try full text
+      s=await wikiJson('action=query&generator=search&gsrlimit=7&gsrsearch='+encodeURIComponent(q)+PI);
+      sp=(s.query&&s.query.pages)||{};
+    }
+    if(mySeq!==sugSeq) return;
+    sugList=Object.keys(sp).map(k=>sp[k]).sort((a,b)=>(a.index||0)-(b.index||0)).map(p=>{
+      const clean=cleanWikiTitle(p.title);
+      return { title:clean, img:(p.thumbnail&&p.thumbnail.source)||'',
+               desc:(p.title!==clean ? p.title : '') };   // show the fuller Wikipedia title when we trimmed it
+    });
+    sugIdx=-1;
+    if(sugList.length) paintSug(); else { f('mSug').innerHTML='<div class="sugnote">No matches &#8212; just type the name yourself.</div>'; f('mSug').style.display='block'; }
+  }catch(e){ if(mySeq===sugSeq) hideSug(); }
+}
+function chooseSug(i){
+  const s=sugList[i]; if(!s) return;
+  f('mGame').value=s.title;
+  f('mGame').classList.remove('err');
+  if(s.img) f('mImg').value=s.img;            // saveModal marks a filled cover field as manual
+  hideSug();
+  f('mGame').focus();
+}
+
 /* ---- pick a cover from the candidates ------------------------------------
    The matcher is deliberately conservative and sometimes finds nothing. This
    shows what Wikipedia actually returned so the choice is yours. */
@@ -1513,6 +1568,21 @@ function bind(){
   f('main').addEventListener('dragover',onDragOver);
   f('main').addEventListener('drop',onDrop);
   f('main').addEventListener('dragend',onDragEnd);
+  f('mGame').addEventListener('input',e=>{
+    const q=e.target.value.trim();
+    clearTimeout(sugTimer);
+    if(q.length<3){ hideSug(); return; }
+    sugTimer=setTimeout(()=>runSug(q),320);            // debounce so typing doesn't spam Wikipedia
+  });
+  f('mGame').addEventListener('keydown',e=>{
+    if(!sugList.length || f('mSug').style.display==='none') return;
+    if(e.key==='ArrowDown'){ e.preventDefault(); sugIdx=(sugIdx+1)%sugList.length; paintSug(); }
+    else if(e.key==='ArrowUp'){ e.preventDefault(); sugIdx=(sugIdx<=0?sugList.length:sugIdx)-1; paintSug(); }
+    else if(e.key==='Enter' && sugIdx>=0){ e.preventDefault(); chooseSug(sugIdx); }
+    else if(e.key==='Escape'){ e.stopPropagation(); hideSug(); }   // close the list, not the whole dialog
+  });
+  f('mSug').addEventListener('mousedown',e=>{ const b=e.target.closest('[data-sug]'); if(b){ e.preventDefault(); chooseSug(+b.dataset.sug); } });
+  f('mGame').addEventListener('blur',()=>setTimeout(hideSug,150));
   f('mCancel').addEventListener('click',closeModal);
   f('mSave').addEventListener('click',saveModal);
   f('mMpSel').addEventListener('change',e=>{ modalMp=e.target.value; updateMpUI(); });

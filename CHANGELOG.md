@@ -3,6 +3,13 @@
 All notable changes to Backlog Catalog are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.21.0] - 2026-08-21
+### Added
+- Type-ahead when naming a game: start typing in the Game field and
+  suggestions appear with cover thumbnails. Picking one fills in the
+  correctly-spelled title and its cover in a single step. Arrow keys and
+  Enter work; Escape closes the list without closing the dialog.
+
 ## [1.20.0] - 2026-08-21
 ### Added
 - Playtime from Steam is now kept: hours show under each game in the list,
