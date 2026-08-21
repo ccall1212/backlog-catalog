@@ -3,6 +3,12 @@
 All notable changes to Backlog Catalog are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.19.1] - 2026-08-21
+### Fixed
+- Bumped the version so the service worker cache name changes. v1.19.0 was
+  rebuilt several times while the cover matcher was being corrected, all under
+  the same version, so a browser that cached an early build kept serving it.
+
 ## [1.19.0] - 2026-08-21
 ### Added
 - Cover art. Steam-imported games use their store art directly from the app
