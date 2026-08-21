@@ -3,6 +3,23 @@
 All notable changes to Backlog Catalog are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.19.0] - 2026-08-21
+### Added
+- Cover art. Steam-imported games use their store art directly from the app
+  id; everything else is looked up on Wikipedia; anything unmatched falls
+  back to an initials tile. Thumbnails appear in the list view and full box
+  art in the new grid view.
+- Grid view toggle, with groups shown as folder tiles that open on click.
+- First-run welcome screen offering Steam import, paste, add a game, or a
+  sample library, instead of an empty table.
+- Right-click any game for quick actions: edit, look up cover again, set a
+  cover URL, clear the cover, delete.
+- Cover art dialog showing where every cover came from, with bulk clear
+  options that preserve Steam art and hand-set covers.
+### Changed
+- App-like styling: rounded cards, lift on hover, press feedback, frosted
+  toolbar.
+
 ## [1.18.1] - 2026-08-20
 ### Fixed
 - Export JSON no longer omits every game's rating. `stripId` had excluded a
