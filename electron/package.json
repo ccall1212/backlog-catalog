@@ -1,0 +1,36 @@
+{
+  "name": "backlog-catalog",
+  "private": true,
+  "version": "1.20.0",
+  "description": "Electron desktop wrapper for the Backlog Catalog single-file web app",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^43.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "com.chriscall.backlogcatalog",
+    "productName": "Backlog Catalog",
+    "files": [
+      "main.js"
+    ],
+    "extraResources": [
+      { "from": "../index.html", "to": "index.html" },
+      { "from": "../manifest.webmanifest", "to": "manifest.webmanifest" },
+      { "from": "../icon-192.png", "to": "icon-192.png" },
+      { "from": "../icon-512.png", "to": "icon-512.png" }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "../icon-512.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Backlog Catalog</title>
-<meta name="app-version" content="1.19.2">
+<meta name="app-version" content="1.20.0">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0f1420">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%236366f1'/><text x='32' y='43' font-size='28' text-anchor='middle' fill='white' font-family='Segoe UI,Arial,sans-serif' font-weight='700'>BC</text></svg>">
@@ -143,6 +143,7 @@ input.err{border-color:var(--red)}
 .grow:last-child{border-bottom:none}
 .grow:hover{background:var(--panel2)}
 .grow .gg{margin-left:auto;color:var(--muted);font-size:11px}
+.hrs{font-size:11px;color:var(--muted);margin-top:2px}
 .tagline{margin-top:3px}
 .tagb{display:inline-block;font-size:10px;font-weight:600;color:var(--muted);background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:1px 7px;margin:1px 3px 0 0}
 .tagb[style]{background:transparent;border-color:hsl(var(--th),45%,45%);color:hsl(var(--th),65%,70%)}
@@ -161,6 +162,12 @@ body.theme-light .tagb[style]{border-color:hsl(var(--th),45%,60%);color:hsl(var(
 .cellEdit{width:100%;min-width:56px;padding:4px 6px;font-size:13px}
 td[data-f]{cursor:cell}
 td[data-f],.chk{touch-action:manipulation}
+/* ---- cover candidate picker ---- */
+.cpgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px;max-height:56vh;overflow:auto}
+.cpick{background:none;border:1px solid var(--line);border-radius:12px;padding:7px;cursor:pointer;font-family:inherit;color:var(--text);display:flex;flex-direction:column;gap:6px;transition:transform .14s,border-color .14s}
+.cpick:hover{border-color:var(--accent);transform:translateY(-2px)}
+.cpick img{width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:8px;background:var(--panel2)}
+.cpick span{font-size:11.5px;line-height:1.25;color:var(--muted)}
 /* ---- right-click menu ---- */
 .ctx{position:fixed;z-index:120;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:5px;min-width:190px;box-shadow:0 12px 34px rgba(0,0,0,.5)}
 .ctx button{display:block;width:100%;text-align:left;background:none;border:none;color:var(--text);font:inherit;font-size:13px;padding:8px 11px;border-radius:8px;cursor:pointer}
@@ -388,6 +395,7 @@ td[data-f],.chk{touch-action:manipulation}
       <label class="hint">Steam profile URL, vanity name, or SteamID64</label>
       <input id="stProfile" type="text" placeholder="https://steamcommunity.com/id/yourname" style="width:100%;margin-top:6px" autocomplete="off">
       <p class="hint" style="margin-top:8px">The profile's <b>Game details</b> privacy must be set to Public.</p>
+      <label class="hint" style="display:block;margin-top:10px"><input type="checkbox" id="stAuto" style="width:auto;margin-right:7px;vertical-align:-2px">Sync this profile when I open the app <span style="opacity:.75">&#8212; at most once a day, updates playtime automatically</span></label>
       <p class="hint" id="stNoRelay" style="display:none;color:var(--hot-text)">The Steam relay isn't configured yet &#8212; use <b>Paste from Steam</b> instead.</p>
     </div>
     <div id="stPasteView" style="display:none">
@@ -422,10 +430,20 @@ td[data-f],.chk{touch-action:manipulation}
 <div id="ctxMenu" class="ctx" style="display:none">
   <button data-ctx="edit">Edit game&#8230;</button>
   <button data-ctx="lookup">Look up cover again</button>
+  <button data-ctx="choose">Choose cover from list&#8230;</button>
   <button data-ctx="seturl">Set cover image URL&#8230;</button>
   <button data-ctx="clear">Clear this cover</button>
   <div class="sep"></div>
   <button data-ctx="del" class="danger">Delete game</button>
+</div>
+
+<div id="coverPickModal" class="modal">
+  <div class="dialog" style="max-width:620px">
+    <h2 id="cpTitle">Choose a cover</h2>
+    <p class="hint" style="margin:-6px 0 12px">Everything Wikipedia returned for this title. Click the right one.</p>
+    <div id="cpGrid" class="cpgrid"></div>
+    <div class="dlg-actions"><button id="cpCancel" class="btn">Cancel</button></div>
+  </div>
 </div>
 
 <div id="coverModal" class="modal">
@@ -448,7 +466,7 @@ td[data-f],.chk{touch-action:manipulation}
 'use strict';
 const SEED = [];
 const LS_KEY = 'backlogCatalog.starter.v1';
-const APP_VERSION = '1.19.2';
+const APP_VERSION = '1.20.0';
 const BK_KEY = LS_KEY + '.lastBackup';
 const DEFAULT_TAGS = ['RPG','FPS','RTS','MMORPG','Platformer','Adventure','Strategy','Racing','Fighting','Puzzle','Horror','Survival','Co-op'];
 const THEME_KEY = LS_KEY + '.theme';
@@ -528,6 +546,9 @@ function prep(arr, doMerge){
     if(!Array.isArray(g.tags)) g.tags=[];
     if(typeof g.appid!=='number'){ const a=parseInt(g.appid,10); g.appid = isNaN(a)?null:a; }
     if(typeof g.img!=='string') g.img='';   // resolved cover URL, cached so each lookup happens once
+    if(typeof g.hours!=='number'){ const h=Number(g.hours); g.hours = isNaN(h)?null:h; }
+    if(typeof g.lastSync!=='string') g.lastSync='';  // ISO date of the sync that set `hours`
+    if(typeof g.prevHours!=='number'){ const p=Number(g.prevHours); g.prevHours = isNaN(p)?null:p; }
     /* mp is tri-state: '' | 'story' (has MP and a campaign) | 'only' (nothing to finish).
        Legacy true === the old "multiplayer only" boolean. */
     g.mp = (g.mp===true||g.mp==='only') ? 'only' : (g.mp==='story' ? 'story' : '');
@@ -611,7 +632,9 @@ function gameCells(g, inGroup){
   const arrows = (inGroup && TOUCH) ? '<button class="icon" data-act="up" data-id="'+g.id+'" title="Move up">&#9650;</button><button class="icon" data-act="down" data-id="'+g.id+'" title="Move down">&#9660;</button>' : '';
   const played = isStarted(g) || isFinished(g);
   return '<td class="title" data-f="title" title="Double-click to edit"><div class="title-wrap">'+coverHtml(g,'tthumb')+'<div class="title-main">'+esc(g.title)+(isMp(g)?' <span class="mp-tag mp-only" title="Multiplayer only - no story to finish">MP ONLY</span>':(g.mp==='story'?' <span class="mp-tag" title="Has multiplayer and a story campaign">MP</span>':''))+(wants100(g)?' <span class="w100" title="Want to 100% this one">&#127919;</span>':'')+'<div class="tagline">'+(g.tags||[]).map(t=>'<span class="tagb" style="--th:'+tagHue(t)+'">'+esc(t)+'</span>').join('')
-    +'<button class="tagadd" data-act="addtag" data-id="'+g.id+'" title="Add a genre tag">+</button></div></div></div>'+'</td>'
+    +'<button class="tagadd" data-act="addtag" data-id="'+g.id+'" title="Add a genre tag">+</button></div>'
+    +(hoursLabel(g.hours)?'<div class="hrs" title="Steam playtime'+(g.lastSync?' as of '+esc(g.lastSync):'')+'">'+hoursLabel(g.hours)+' played</div>':'')
+    +'</div></div>'+'</td>'
     +'<td class="plat" data-f="plat" title="Double-click to open editor">'+badges(g)+'</td>'
     +'<td class="center" data-label="Finished">'+statusCell(g,'finished')+'</td>'
     +'<td class="center" data-label="Played">'+statusCell(g,'started')+'</td>'
@@ -936,7 +959,7 @@ function steamPreview(list){
 }
 function steamMerge(list){
   const byNorm=new Map(); games.forEach(g=>{ if(!byNorm.has(normTitle(g.title))) byNorm.set(normTitle(g.title), g); });
-  const res={matched:0, added:0};
+  const res={matched:0, added:0, playedSince:0};
   list.forEach(s=>{
     const sp=(s.played!==undefined)?s.played:(s.hours>0); // fetch path knows exact minutes; paste path falls back to hours
     const ex=byNorm.get(normTitle(s.title));
@@ -945,8 +968,14 @@ function steamMerge(list){
       if(!ex.appid && s.appid) ex.appid=s.appid;   // gives the game its Steam cover art
       if(platsOf(ex).indexOf('PC')<0) ex.platforms=rankPlats(platsOf(ex).concat(['PC']));
       if(ex.mp!=='only' && sp && upgradable(ex.started)) ex.started='Yes';
+      // keep the previous reading so "played 3h since last sync" is answerable
+      if(typeof s.hours==='number'){
+        if(typeof ex.hours==='number' && s.hours!==ex.hours) ex.prevHours=ex.hours;
+        ex.hours=s.hours; ex.lastSync=todayISO();
+        if(ex.hours>(ex.prevHours==null?-1:ex.prevHours)) res.playedSince++;
+      }
     } else {
-      const ng={ id:uid(), title:s.title, platforms:['PC'], group:'', ord:0, tags:[], appid:(s.appid||null), img:'', mp:'', finished:'', started:sp?'Yes':'', done100:'', replayable:'', rating:null, comments:'' };
+      const ng={ id:uid(), title:s.title, platforms:['PC'], group:'', ord:0, tags:[], appid:(s.appid||null), img:'', hours:(typeof s.hours==='number'?s.hours:null), prevHours:null, lastSync:(typeof s.hours==='number'?todayISO():''), mp:'', finished:'', started:sp?'Yes':'', done100:'', replayable:'', rating:null, comments:'' };
       games.push(ng); byNorm.set(normTitle(ng.title), ng);
       res.added++;
     }
@@ -958,6 +987,9 @@ function openSteamModal(mode){
   stMode=mode; stResults=null; stSession++; // invalidate any fetch still in flight from a prior open
   document.getElementById('importModal').classList.remove('show');
   f('stHdr').textContent = mode==='url' ? 'Import from Steam' : 'Paste from Steam';
+  const ac=autoCfg();
+  f('stAuto').checked=!!ac;
+  if(ac && ac.profile && !f('stProfile').value) f('stProfile').value=ac.profile;
   f('stUrlView').style.display = mode==='url'?'':'none';
   f('stPasteView').style.display = mode==='paste'?'':'none';
   // the relay only answers its own hosted origin (CORS) — a local file:// copy
@@ -1001,11 +1033,37 @@ async function steamGo(){
     }
   }catch(e){ if(mySession===stSession){ f('stStatus').textContent='Failed: '+e.message; f('stGo').disabled=false; } }
 }
+/* ---- optional sync-on-open -------------------------------------------------
+   Remembers the profile and re-syncs at most once a day when the app opens, so
+   playtime stays current without any background process. Silent on failure —
+   a missed sync must never block getting to your library. */
+const AUTO_KEY=LS_KEY+'.autoSync';
+function autoCfg(){ try{ return JSON.parse(localStorage.getItem(AUTO_KEY)||'null')||null; }catch(e){ return null; } }
+function setAutoCfg(c){ try{ c?localStorage.setItem(AUTO_KEY,JSON.stringify(c)):localStorage.removeItem(AUTO_KEY); }catch(e){} }
+async function maybeAutoSync(){
+  const c=autoCfg();
+  if(!c || !c.profile || !steamRelayBase() || location.protocol==='file:') return;
+  if(c.last===todayISO()) return;                 // already done today
+  try{
+    const list=await steamFetchAll(c.profile, ()=>{});
+    const r=steamMerge(list);
+    setAutoCfg({profile:c.profile, last:todayISO()});
+    save(); buildPlatformOptions(); render();
+    if(r.added||r.playedSince){
+      const bits=[];
+      if(r.added) bits.push(r.added+' new game'+(r.added===1?'':'s'));
+      if(r.playedSince) bits.push(r.playedSince+' played since last sync');
+      const sf=document.getElementById('sideFoot');
+      if(sf) sf.insertAdjacentHTML('beforeend','<br><span style="color:var(--accent)">Steam: '+bits.join(', ')+'</span>');
+    }
+  }catch(e){ setAutoCfg({profile:c.profile, last:todayISO()}); } // don't retry all day on a bad profile
+}
 function steamApply(){
   if(!stResults) return;
   const r=steamMerge(stResults);
   save(); buildPlatformOptions(); render(); closeSteamModal();
-  alert('Steam import done: '+r.matched+' games updated, '+r.added+' added.');
+  alert('Steam import done: '+r.matched+' games updated, '+r.added+' added'
+    +(r.playedSince?', '+r.playedSince+' with new playtime':'')+'.');
 }
 
 /* ---- group tagging (tag every game in a group at once) ---- */
@@ -1051,6 +1109,11 @@ function tagGroupRemove(tag){
      2. otherwise Wikipedia's API, which permits anonymous cross-origin calls
      3. otherwise a generated initials tile, so every game still has something
    Resolved URLs are cached on the game as `img`, so each lookup happens once. */
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+function hoursLabel(h){
+  if(typeof h!=='number'||h<=0) return '';
+  return h<1 ? Math.round(h*60)+'m' : (h<10 ? h.toFixed(1) : Math.round(h))+'h';
+}
 function steamCover(appid){ return 'https://cdn.cloudflare.steamstatic.com/steam/apps/'+appid+'/library_600x900.jpg'; }
 function coverUrl(g){ if(g.img) return g.img; if(g.appid) return steamCover(g.appid); return ''; }
 function initialsOf(t){
@@ -1293,6 +1356,29 @@ function pickRandom(){
   const tr=document.querySelector('tr[data-id="'+pick.id+'"]');
   if(tr){ tr.classList.add('picked'); tr.scrollIntoView({block:'center'}); setTimeout(()=>tr.classList.remove('picked'),2600); }
 }
+/* ---- pick a cover from the candidates ------------------------------------
+   The matcher is deliberately conservative and sometimes finds nothing. This
+   shows what Wikipedia actually returned so the choice is yours. */
+let pickCoverId='';
+async function openCoverPicker(g){
+  pickCoverId=g.id;
+  f('cpTitle').textContent='Cover for "'+g.title+'"';
+  f('cpGrid').innerHTML='<p class="hint">Searching&#8230;</p>';
+  document.getElementById('coverPickModal').classList.add('show');
+  let cands=[];
+  try{
+    const s=await wikiJson('action=query&generator=search&gsrlimit=8&gsrsearch='+encodeURIComponent(g.title)+PI);
+    const sp=(s.query&&s.query.pages)||{};
+    cands=Object.keys(sp).map(k=>sp[k]).filter(p=>p.thumbnail).sort((a,b)=>(a.index||0)-(b.index||0));
+  }catch(e){}
+  if(pickCoverId!==g.id) return;               // dialog was closed or reopened
+  if(!cands.length){ f('cpGrid').innerHTML='<p class="hint">No images found. Use <b>Set cover image URL</b> from the right-click menu instead.</p>'; return; }
+  f('cpGrid').innerHTML=cands.map(p=>
+    '<button class="cpick" data-src="'+esc(p.thumbnail.source)+'"><img src="'+esc(p.thumbnail.source)+'" alt="" loading="lazy"><span>'+esc(p.title)+'</span></button>'
+  ).join('');
+}
+function closeCoverPicker(){ document.getElementById('coverPickModal').classList.remove('show'); pickCoverId=''; }
+
 /* ---- right-click a game for quick cover actions ---- */
 let ctxId='';
 function closeCtx(){ const m=f('ctxMenu'); if(m) m.style.display='none'; ctxId=''; }
@@ -1314,6 +1400,7 @@ async function ctxAction(act){
   if(act==='edit') return openModal(g.id);
   if(act==='del') return del(g.id);
   if(act==='clear'){ g.img=''; g.imgManual=false; save(); render(); return; }
+  if(act==='choose') return openCoverPicker(g);
   if(act==='seturl'){
     const u=(prompt('Cover image URL for "'+g.title+'":', g.img||'')||'').trim();
     if(u!==''){ g.img=u; g.imgManual=true; } else { g.img=''; g.imgManual=false; }
@@ -1366,6 +1453,14 @@ function bind(){
   });
   f('coverBtn').addEventListener('click',openCoverModal);
   f('cvCancel').addEventListener('click',closeCoverModal);
+  f('cpCancel').addEventListener('click',closeCoverPicker);
+  f('cpGrid').addEventListener('click',e=>{
+    const b=e.target.closest('.cpick'); if(!b) return;
+    const g=games.find(x=>x.id===pickCoverId);
+    if(g){ g.img=b.dataset.src; g.imgManual=true; save(); render(); }   // a deliberate choice must survive re-lookups
+    closeCoverPicker();
+  });
+  document.getElementById('coverPickModal').addEventListener('click',e=>{ if(e.target.id==='coverPickModal') closeCoverPicker(); });
   f('cvFetch').addEventListener('click',fetchCovers);
   f('cvClear').addEventListener('click',()=>{
     const n=games.filter(g=>g.img&&!g.imgManual).length;
@@ -1399,6 +1494,13 @@ function bind(){
   f('stCancel').addEventListener('click',closeSteamModal);
   f('stGo').addEventListener('click',steamGo);
   f('stApply').addEventListener('click',steamApply);
+  f('stAuto').addEventListener('change',e=>{
+    const p=(f('stProfile').value||'').trim();
+    if(e.target.checked){
+      if(!p){ alert('Enter your Steam profile first, then tick this box.'); e.target.checked=false; return; }
+      setAutoCfg({profile:p, last:''});
+    } else setAutoCfg(null);
+  });
   document.getElementById('steamModal').addEventListener('click',e=>{ if(e.target.id==='steamModal') closeSteamModal(); });
   f('importFile').addEventListener('change',importJSON);
   f('main').addEventListener('click',onMainClick);
@@ -1438,11 +1540,12 @@ function bind(){
   f('tgColors').addEventListener('click',e=>{ const b=e.target.closest('[data-gc]'); if(!b||!tgGroup) return; const c=b.dataset.gc; if(c) groupColors[tgGroup]=c; else delete groupColors[tgGroup]; saveGroupColors(); renderTagGroup(); render(); });
   f('themeSel').addEventListener('change',e=>applyTheme(e.target.value));
   document.getElementById('tagGroupModal').addEventListener('click',e=>{ if(e.target.id==='tagGroupModal') closeTagGroupModal(); });
-  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeModal(); closeGroupModal(); closeTagGroupModal(); closeSteamModal(); closePickModal(); closeCtx(); closeCoverModal(); document.getElementById('importModal').classList.remove('show'); } });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeModal(); closeGroupModal(); closeTagGroupModal(); closeSteamModal(); closePickModal(); closeCtx(); closeCoverModal(); closeCoverPicker(); document.getElementById('importModal').classList.remove('show'); } });
   if(TOUCH){ const ft=document.querySelector('footer'); if(ft) ft.innerHTML='Tip: <b>tap</b> a cell to edit &#8226; auto-saves here &#8226; <b>Export JSON</b> to back up &#8226; v'+APP_VERSION; }
 }
 (function(){ const sel=f('themeSel'); if(sel){ sel.innerHTML=THEMES.map(t=>'<option>'+t+'</option>').join(''); let tv='Midnight'; try{ tv=localStorage.getItem(THEME_KEY)||'Midnight'; }catch(e){} if(THEMES.indexOf(tv)<0) tv='Midnight'; sel.value=tv; applyTheme(tv); } })();
 buildPlatformOptions(); bind(); render();
+maybeAutoSync();
 if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){ navigator.serviceWorker.register('sw.js').catch(function(){}); }
 </script>
 </body>

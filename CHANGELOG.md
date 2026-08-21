@@ -3,6 +3,23 @@
 All notable changes to Backlog Catalog are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.20.0] - 2026-08-21
+### Added
+- Playtime from Steam is now kept: hours show under each game in the list,
+  and the previous reading is retained so "played since last sync" is
+  answerable.
+- Optional sync-on-open: remember a Steam profile and re-sync at most once
+  a day when the app opens. Failures are silent so a bad sync never blocks
+  getting to the library.
+- Choose cover from list: right-click a game to see every image Wikipedia
+  returned and pick the right one. A deliberate choice is kept through
+  re-lookups and bulk clears.
+- Publish a read-only snapshot of the library to a URL (Cloudflare Worker +
+  KV). Point an AI agent at it, or share it with a friend. Unlisted rather
+  than private, and revocable. Needs one-time setup, see steam-relay/SETUP.md.
+- electron/: an optional desktop wrapper scaffold. Not built or required -
+  the hosted PWA installs with none of the hassle.
+
 ## [1.19.2] - 2026-08-21
 ### Fixed
 - Every game ended up with the same cover art. The service worker matched
