@@ -56,6 +56,6 @@ Download `index.html` and open it in any browser. That's the whole app — one f
 
 ## Version
 
-Current: **v1.18.0** — see the sidebar footer for the version you're running.
+Current: **v1.18.1** — see the sidebar footer for the version you're running.
 
 <sub>Built with Claude Code.</sub>

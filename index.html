@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Backlog Catalog</title>
-<meta name="app-version" content="1.18.0">
+<meta name="app-version" content="1.18.1">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0f1420">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%236366f1'/><text x='32' y='43' font-size='28' text-anchor='middle' fill='white' font-family='Segoe UI,Arial,sans-serif' font-weight='700'>BC</text></svg>">
@@ -384,7 +384,7 @@ td[data-f],.chk{touch-action:manipulation}
 'use strict';
 const SEED = [];
 const LS_KEY = 'backlogCatalog.starter.v1';
-const APP_VERSION = '1.18.0';
+const APP_VERSION = '1.18.1';
 const BK_KEY = LS_KEY + '.lastBackup';
 const DEFAULT_TAGS = ['RPG','FPS','RTS','MMORPG','Platformer','Adventure','Strategy','Racing','Fighting','Puzzle','Horror','Survival','Co-op'];
 const THEME_KEY = LS_KEY + '.theme';
@@ -720,7 +720,14 @@ function saveGroup(){
 function autoGroup(){ let n=0; games.forEach(g=>{ if(!(g.group||'').trim()){ const d=detectGroup(g.title); if(d){ g.group=d; n++; } } }); return n; }
 
 function download(name,text,type){ const b=new Blob([text],{type:type||'application/octet-stream'}); const u=URL.createObjectURL(b); const a=document.createElement('a'); a.href=u; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u),1000); }
-function stripId(g){ const o={}; for(const k in g){ if(k!=='id'&&k!=='platform'&&k!=='rating'&&k!=='series') o[k]=g[k]; } return o; }
+/* Fields omitted from exports:
+     id       - regenerated on import, meaningless across libraries
+     platform - dead legacy key (superseded by platforms[]), deleted by prep()
+     series   - dead legacy key (superseded by group), deleted by prep()
+   NOTHING ELSE. 'rating' was wrongly listed here from v1.12.0 (when it stopped
+   being a legacy name and became the live field), which silently stripped
+   every rating out of every backup until v1.18.1. */
+function stripId(g){ const o={}; for(const k in g){ if(k!=='id'&&k!=='platform'&&k!=='series') o[k]=g[k]; } return o; }
 function exportJSON(){
   const env={ app:'Backlog Catalog', version:APP_VERSION, exported:new Date().toISOString(), groupColors:groupColors, games:games.map(stripId) };
   download('games-library-backup.json', JSON.stringify(env,null,2), 'application/json');
@@ -729,7 +736,8 @@ function exportJSON(){
 }
 function csvCell(v){ v=(v==null?'':String(v)); return /[",\n]/.test(v)? '"'+v.replace(/"/g,'""')+'"' : v; }
 function exportCSV(){
-  const head=['Game','Group','Tags','Platform(s)','Multiplayer','Finished?','Started/Played?','Want to 100%?','100% Complete?','Replayable?','Want to Play (1-10)','Final Rating (1-10)','Comments'];
+  // must stay in lockstep with the value array below - 11 columns
+  const head=['Game','Group','Tags','Platform(s)','Multiplayer','Finished?','Started/Played?','100%','Replayable?','Rating (1-10)','Comments'];
   const lines=[head.map(csvCell).join(',')];
   games.forEach(g=>{ lines.push([g.title, g.group, (g.tags||[]).join('; '), platsOf(g).join('; '), (g.mp==='only'?'Multiplayer only':(g.mp==='story'?'Multiplayer + Story':'')), g.finished, g.started, g.done100, g.replayable, g.rating, g.comments].map(csvCell).join(',')); });
   download('games.csv', lines.join('\r\n'), 'text/csv');

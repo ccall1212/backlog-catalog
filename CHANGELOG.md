@@ -3,6 +3,16 @@
 All notable changes to Backlog Catalog are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.18.1] - 2026-08-20
+### Fixed
+- Export JSON no longer omits every game's rating. `stripId` had excluded a
+  field called `rating` since it was a legacy name; v1.12.0 made `rating` the
+  live field, so backups taken between then and now contain no ratings.
+  Re-export any backup made before this version.
+- CSV export columns realigned: the header still listed the removed Want to
+  Play / Final Rating pair and two separate 100% columns (13 headers against
+  11 values), shifting every column after "Want to 100%?".
+
 ## [1.18.0] - 2026-08-20
 ### Added
 - Add a genre tag straight from the list: a `+` on each row's tag line opens a
