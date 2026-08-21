@@ -3,6 +3,15 @@
 All notable changes to Backlog Catalog are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.19.2] - 2026-08-21
+### Fixed
+- Every game ended up with the same cover art. The service worker matched
+  cached responses with `ignoreSearch`, which drops the query string - and
+  every Wikipedia API call shares one path (`/w/api.php`), differing only in
+  its query. The first lookup's response was therefore replayed for every
+  game after it. The worker now ignores cross-origin requests entirely and
+  only caches this site's own files.
+
 ## [1.19.1] - 2026-08-21
 ### Fixed
 - Bumped the version so the service worker cache name changes. v1.19.0 was
