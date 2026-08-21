@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Backlog Catalog</title>
-<meta name="app-version" content="1.17.1">
+<meta name="app-version" content="1.18.0">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0f1420">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%236366f1'/><text x='32' y='43' font-size='28' text-anchor='middle' fill='white' font-family='Segoe UI,Arial,sans-serif' font-weight='700'>BC</text></svg>">
@@ -146,6 +146,11 @@ input.err{border-color:var(--red)}
 .tagline{margin-top:3px}
 .tagb{display:inline-block;font-size:10px;font-weight:600;color:var(--muted);background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:1px 7px;margin:1px 3px 0 0}
 .tagb[style]{background:transparent;border-color:hsl(var(--th),45%,45%);color:hsl(var(--th),65%,70%)}
+.tagadd{background:none;border:1px dashed var(--line);color:var(--muted);border-radius:999px;font-size:10px;font-weight:700;line-height:1;padding:2px 6px;margin:1px 0 0 2px;cursor:pointer;vertical-align:middle;font-family:inherit}
+.tagadd:hover{border-color:var(--accent);color:var(--accent)}
+/* stay faint until the row is hovered on pointer devices; always visible on touch */
+@media(hover:hover){.tagadd{opacity:.35}tr:hover .tagadd{opacity:1}}
+select.tagsel{font-size:12px;padding:2px 4px;max-width:150px}
 body.theme-light .tagb[style]{border-color:hsl(var(--th),45%,60%);color:hsl(var(--th),75%,30%)}
 .swatch{width:24px;height:24px;border-radius:50%;display:inline-block;margin:2px 8px 2px 0;cursor:pointer;border:2px solid transparent;vertical-align:middle;padding:0}
 .swatch.on{border-color:var(--text)}
@@ -379,7 +384,7 @@ td[data-f],.chk{touch-action:manipulation}
 'use strict';
 const SEED = [];
 const LS_KEY = 'backlogCatalog.starter.v1';
-const APP_VERSION = '1.17.1';
+const APP_VERSION = '1.18.0';
 const BK_KEY = LS_KEY + '.lastBackup';
 const DEFAULT_TAGS = ['RPG','FPS','RTS','MMORPG','Platformer','Adventure','Strategy','Racing','Fighting','Puzzle','Horror','Survival','Co-op'];
 const THEME_KEY = LS_KEY + '.theme';
@@ -539,7 +544,8 @@ function statusCell(g,field){ if(isMp(g)) return '<span class="mp-no" title="Mul
 function gameCells(g, inGroup){
   const arrows = (inGroup && TOUCH) ? '<button class="icon" data-act="up" data-id="'+g.id+'" title="Move up">&#9650;</button><button class="icon" data-act="down" data-id="'+g.id+'" title="Move down">&#9660;</button>' : '';
   const played = isStarted(g) || isFinished(g);
-  return '<td class="title" data-f="title" title="Double-click to edit">'+esc(g.title)+(isMp(g)?' <span class="mp-tag mp-only" title="Multiplayer only - no story to finish">MP ONLY</span>':(g.mp==='story'?' <span class="mp-tag" title="Has multiplayer and a story campaign">MP</span>':''))+(wants100(g)?' <span class="w100" title="Want to 100% this one">&#127919;</span>':'')+((g.tags&&g.tags.length)?'<div class="tagline">'+g.tags.map(t=>'<span class="tagb" style="--th:'+tagHue(t)+'">'+esc(t)+'</span>').join('')+'</div>':'')+'</td>'
+  return '<td class="title" data-f="title" title="Double-click to edit">'+esc(g.title)+(isMp(g)?' <span class="mp-tag mp-only" title="Multiplayer only - no story to finish">MP ONLY</span>':(g.mp==='story'?' <span class="mp-tag" title="Has multiplayer and a story campaign">MP</span>':''))+(wants100(g)?' <span class="w100" title="Want to 100% this one">&#127919;</span>':'')+'<div class="tagline">'+(g.tags||[]).map(t=>'<span class="tagb" style="--th:'+tagHue(t)+'">'+esc(t)+'</span>').join('')
+    +'<button class="tagadd" data-act="addtag" data-id="'+g.id+'" title="Add a genre tag">+</button></div>'+'</td>'
     +'<td class="plat" data-f="plat" title="Double-click to open editor">'+badges(g)+'</td>'
     +'<td class="center" data-label="Finished">'+statusCell(g,'finished')+'</td>'
     +'<td class="center" data-label="Played">'+statusCell(g,'started')+'</td>'
@@ -901,6 +907,30 @@ function tagGroupRemove(tag){
   save(); renderTagGroup(); render();
 }
 
+/* ---- add a tag straight from the list, without opening the editor ---- */
+function startTagAdd(btn, g){
+  const taken=(g.tags||[]).map(t=>t.toLowerCase());
+  const opts=Array.from(new Set(usedTags().concat(DEFAULT_TAGS))).sort().filter(t=>taken.indexOf(t.toLowerCase())<0);
+  const sel=document.createElement('select');
+  sel.className='cellEdit tagsel';
+  sel.innerHTML='<option value="">Add tag&#8230;</option>'+opts.map(t=>'<option value="'+esc(t)+'">'+esc(t)+'</option>').join('')+'<option value="__new__">+ New tag&#8230;</option>';
+  btn.replaceWith(sel);
+  sel.focus();
+  let done=false;
+  const finish=v=>{
+    if(done) return; done=true;
+    if(v==='__new__') v=(prompt('New tag name:')||'').trim();
+    if(v){
+      if(!Array.isArray(g.tags)) g.tags=[];
+      if(!g.tags.some(t=>t.toLowerCase()===v.toLowerCase())){ g.tags.push(v); save(); }
+    }
+    render(); // repaints the row and refreshes the tag filter
+  };
+  sel.addEventListener('change',()=>finish(sel.value));
+  sel.addEventListener('blur',()=>finish(''));
+  sel.addEventListener('keydown',e=>{ if(e.key==='Escape'){ e.preventDefault(); done=true; render(); } });
+}
+
 /* ---- inline cell editing (double-click) ---- */
 function onCellDblClick(e){
   const td=e.target.closest('td[data-f]'); if(!td) return;
@@ -1018,6 +1048,7 @@ function onMainClick(e){
   const btn=e.target.closest('button[data-act]');
   if(btn){
     const act=btn.dataset.act;
+    if(act==='addtag'){ const g=games.find(x=>x.id===btn.dataset.id); if(g) startTagAdd(btn,g); return; }
     if(act==='tog') toggleField(btn.dataset.id, btn.dataset.field);
     else if(act==='edit') openModal(btn.dataset.id);
     else if(act==='del') del(btn.dataset.id);

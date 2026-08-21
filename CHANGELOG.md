@@ -3,6 +3,12 @@
 All notable changes to Backlog Catalog are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.18.0] - 2026-08-20
+### Added
+- Add a genre tag straight from the list: a `+` on each row's tag line opens a
+  small picker (existing tags, the built-in genres, or a new one). Tags
+  already on that game are omitted; Escape cancels.
+
 ## [1.17.1] - 2026-08-20
 ### Changed
 - App script now runs in strict mode.
