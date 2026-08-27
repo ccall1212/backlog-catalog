@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Backlog Catalog</title>
-<meta name="app-version" content="1.24.1">
+<meta name="app-version" content="1.24.2">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0f1420">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%236366f1'/><text x='32' y='43' font-size='28' text-anchor='middle' fill='white' font-family='Segoe UI,Arial,sans-serif' font-weight='700'>BC</text></svg>">
@@ -111,6 +111,22 @@ tr.dto td{box-shadow:inset 0 2px 0 var(--accent)}
 .icon{background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;padding:2px 5px;border-radius:6px}
 .icon:hover{background:var(--panel2);color:var(--text)}.icon.danger:hover{color:var(--red)}
 .actions{white-space:nowrap;text-align:right}
+/* Scoped as `.grid label.sldlabel` on purpose: the generic `.grid label` and
+   `.grid label>button` rules are more specific than a bare class, and they were
+   keeping this a block (title and value colliding) while forcing the X onto its
+   own full-width row underneath. */
+.grid label.sldlabel{display:grid;grid-template-columns:auto 1fr auto;column-gap:10px;align-items:center}
+/* The X comes LAST in the DOM on purpose: a label forwards clicks to its first
+   labelable descendant, and we want that to be the slider, not this button. */
+.grid label.sldlabel .ttl{grid-row:1;grid-column:1}
+.grid label.sldlabel .sval{grid-row:1;grid-column:2;margin:0;justify-self:start}
+.grid label.sldlabel .clr{grid-row:1;grid-column:3;justify-self:end;display:inline-block;width:auto;margin:0}
+.grid label.sldlabel .sldwrap{grid-row:2;grid-column:1/-1;margin-top:2px}
+.clr{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;padding:2px 6px;border-radius:6px}
+.clr:hover{background:var(--panel2);color:var(--text)}
+.slider.unset::-webkit-slider-thumb{background:var(--panel2);border-color:var(--line)}
+.slider.unset::-moz-range-thumb{background:var(--panel2);border-color:var(--line)}
+.sldnote{display:block;margin-top:2px;font-size:10px;color:var(--muted)}
 .sldwrap{position:relative;margin-top:5px;padding-bottom:13px}
 .sldwrap .slider{width:100%;display:block;margin:0}  /* UA margin would shift the track off the tick row */
 /* The thumb travels between half its own width and (track - half), so a tick for
@@ -383,9 +399,9 @@ td[data-f],.chk{touch-action:manipulation}
       <label class="full">Tags <span class="hint">genres</span><div id="mTags" style="margin-top:4px"></div><select id="mTagSel" style="margin-top:6px"></select></label>
       <label>Started / Played<span class="seg" id="mStarted" data-val=""><button type="button" data-v="Yes">Yes</button><button type="button" data-v="No">No</button></span></label>
       <label class="playonly">Finished<span class="seg" id="mFin" data-val=""><button type="button" data-v="Yes">Yes</button><button type="button" data-v="No">No</button><button type="button" data-v="N/A">N/A</button></span></label>
-      <label class="playonly">Rating <span class="hint sval" id="mRatingOut">not rated</span><div class="sldwrap"><input id="mRating" class="slider" type="range" min="0" max="10" step="0.5" value="0" list="mScale"><div class="ticks" data-ticks="1"></div></div></label>
-      <label class="playonly">100%<select id="mDone"><option value="">Not 100%</option><option value="Want">Want to 100%</option><option value="Yes">100% complete</option></select></label>
-      <label class="playonly">Replayability <span class="hint sval" id="mReplayOut">not rated</span><div class="sldwrap"><input id="mReplay" class="slider" type="range" min="0" max="10" step="0.5" value="0" list="mScale"><div class="ticks" data-ticks="1"></div></div></label>
+      <label class="playonly sldlabel"><span class="ttl">Rating</span><span class="hint sval" id="mRatingOut">not rated</span><div class="sldwrap"><input id="mRating" class="slider" type="range" min="1" max="10" step="0.5" value="1" list="mScale"><div class="ticks" data-ticks="1"></div></div><button type="button" class="clr" data-clr="mRating" title="Set back to not rated">&#215;</button></label>
+      <label class="playonly">100% / Platinum<select id="mDone"><option value="">Not 100%</option><option value="Want">Want to 100%</option><option value="Yes">100% complete</option></select></label>
+      <label class="playonly sldlabel"><span class="ttl">Replayability</span><span class="hint sval" id="mReplayOut">not rated</span><div class="sldwrap"><input id="mReplay" class="slider" type="range" min="1" max="10" step="0.5" value="1" list="mScale"><div class="ticks" data-ticks="1"></div><span class="sldnote">Above 6 goes on the Replayability page</span></div><button type="button" class="clr" data-clr="mReplay" title="Set back to not rated">&#215;</button></label>
       <label class="full">Comments<textarea id="mComments" rows="2"></textarea></label>
     </div>
     <div class="dlg-actions">
@@ -533,7 +549,7 @@ td[data-f],.chk{touch-action:manipulation}
 'use strict';
 const SEED = [];
 const LS_KEY = 'backlogCatalog.starter.v1';
-const APP_VERSION = '1.24.1';
+const APP_VERSION = '1.24.2';
 const BK_KEY = LS_KEY + '.lastBackup';
 const DEFAULT_TAGS = ['RPG','FPS','RTS','MMORPG','Platformer','Adventure','Strategy','Racing','Fighting','Puzzle','Horror','Survival','Co-op'];
 const THEME_KEY = LS_KEY + '.theme';
@@ -936,10 +952,6 @@ function fillGroupSelect(current){
   sel.innerHTML='<option value="">(none)</option>'+gs.map(g=>'<option value="'+esc(g)+'">'+esc(g)+'</option>').join('')+'<option value="__new__">+ New group…</option>';
   sel.value=current||'';
 }
-/* segmented Yes/No/N-A control: tap to set, tap again to clear */
-/* Rating and Replayability are 0-10 sliders in half steps, where 0 means "not
-   rated" - a range input always holds a value, so zero is what gives these
-   fields an empty state at all. Treat 0 as null everywhere outside the DOM. */
 /* Replayability became a 0-10 rating in v1.24.1; before that it was Yes/No/N-A.
    Old answers are mapped to numbers (Yes -> 8, No -> 2) rather than dropped, and
    the original string is kept in replayableLegacy so the mapping stays reversible
@@ -953,26 +965,36 @@ function replayNum(g){
   if(/^\s*no/i.test(v||'')) return 2;
   return null;
 }
-function sliderVal(id){ const v=parseFloat(f(id).value); return (isNaN(v)||v<=0)?null:v; }
-function sliderSet(id,v){ const n=Number(v); f(id).value=(!isNaN(n)&&n>0)?Math.min(10,n):0; paintSlider(id); }
-/* 1-10 written under both sliders. 0 is deliberately unlabelled: it is the
-   "not rated" end, and the readout beside the label already says so. */
+/* 1-10 under both sliders. The thumb travels between half its width and
+   (track - half), so a tick sits at 9px + (100% - 18px) * (v-1)/9. */
 function buildScales(){
   const dl=document.createElement('datalist'); dl.id='mScale';
   let html='';
   for(let v=1; v<=10; v++){
     dl.innerHTML+='<option value="'+v+'"></option>';
-    html+='<span style="left:calc(9px + (100% - 18px) * '+(v/10)+')">'+v+'</span>';
+    html+='<span style="left:calc(9px + (100% - 18px) * '+((v-1)/9)+')">'+v+'</span>';
   }
   document.body.appendChild(dl);
   [...document.querySelectorAll('.ticks[data-ticks]')].forEach(t=>{ t.innerHTML=html; });
 }
-function paintSlider(id){
-  const out=f(id+'Out'); if(!out) return;
-  const v=sliderVal(id);
-  out.textContent = (v==null) ? 'not rated' : String(v);
-  out.classList.toggle('set', v!=null);
+/* The scale is a real 1-10 with no zero, so "not rated" cannot be a position on
+   the track - it is a flag. The thumb parks at 1 while unset, greyed out, and
+   the readout says so; touching the slider commits a value, and the X clears it
+   back. Everything outside the DOM still sees null for unrated. */
+function sliderVal(id){ const el=f(id); if(el.dataset.unset==='1') return null; const v=parseFloat(el.value); return isNaN(v)?null:v; }
+function sliderSet(id,v){
+  const el=f(id), n=Number(v);
+  if(v===null||v===undefined||v===''||isNaN(n)||n<=0){ el.dataset.unset='1'; el.value=1; }
+  else { el.dataset.unset=''; el.value=Math.max(1,Math.min(10,n)); }
+  paintSlider(id);
 }
+function paintSlider(id){
+  const el=f(id), v=sliderVal(id), out=f(id+'Out');
+  el.classList.toggle('unset', v==null);
+  if(out){ out.textContent=(v==null)?'not rated':String(v); out.classList.toggle('set', v!=null); }
+  const c=document.querySelector('[data-clr="'+id+'"]'); if(c) c.style.visibility=(v==null)?'hidden':'visible';
+}
+/* segmented Yes/No control: tap to set, tap again to clear */
 function segVal(id){ return f(id).dataset.val||''; }
 function segSet(id,v){
   const el=f(id); el.dataset.val=v||'';
@@ -991,10 +1013,12 @@ function updateFinalState(){ /* rating is no longer gated on having played (v1.1
    keeps them on screen - otherwise older entries (or a Steam import) could
    hold data with no way to reach it. Comments are never gated. */
 function updatePlayedUI(){
-  const set=v=>v!==''&&v!=null;
+  /* Only POSITIVE evidence of having played counts. Finished==='No' must not
+     qualify: most libraries answer that for everything they own, which made
+     the gate open on nearly every game and look broken. */
   const played = segVal('mStarted')==='Yes' || modalMp==='only'
-    || set(segVal('mFin'))
-    || set(f('mDone').value) || sliderVal('mRating')!=null || sliderVal('mReplay')!=null;
+    || segVal('mFin')==='Yes'
+    || f('mDone').value!=='' || sliderVal('mRating')!=null || sliderVal('mReplay')!=null;
   [...document.querySelectorAll('#modal label.playonly')].forEach(l=>{ l.style.display=played?'':'none'; });
 }
 function updateMpUI(){
@@ -1792,7 +1816,8 @@ function bind(){
     } else setAutoCfg(null);
   });
   buildScales();
-  ['mRating','mReplay'].forEach(id=>f(id).addEventListener('input',()=>{ paintSlider(id); updatePlayedUI(); }));
+  document.getElementById('modal').addEventListener('click',e=>{ const c=e.target.closest('[data-clr]'); if(c){ sliderSet(c.dataset.clr,null); updatePlayedUI(); } });
+  ['mRating','mReplay'].forEach(id=>f(id).addEventListener('input',()=>{ f(id).dataset.unset=''; paintSlider(id); updatePlayedUI(); }));
   f('stPlat').addEventListener('change',e=>setSteamPlatOn(e.target.checked));
   document.getElementById('steamModal').addEventListener('click',e=>{ if(backdropClick(e,'steamModal')) closeSteamModal(); });
   f('importFile').addEventListener('change',importJSON);

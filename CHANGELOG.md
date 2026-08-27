@@ -3,6 +3,26 @@
 All notable changes to Backlog Catalog are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.24.2] - 2026-08-27
+### Changed
+- The Rating and Replayability sliders run 1-10 with no zero. "Not rated" is
+  a state rather than a position: the thumb rests on 1 greyed out, the value
+  reads "not rated", and an X appears once a value is set so it can be
+  cleared again.
+- Replayability notes underneath that anything above 6 lands on the
+  Replayability page.
+- The 100% field is now labelled "100% / Platinum".
+
+### Fixed
+- The edit dialog kept showing Finished, Rating, 100% and Replayability on
+  games that had never been played: answering "Finished: No" counted as
+  evidence of having played it, which is true of most owned games. Only
+  positive evidence opens those fields now - Started, Finished: Yes, a 100%
+  answer, or an existing rating.
+- The slider rows laid out wrongly: the generic `.grid label` rules outrank a
+  bare class, so the value collided with its label and the clear button was
+  forced onto a full-width row of its own below the slider.
+
 ## [1.24.1] - 2026-08-27
 ### Added
 - Favorites: a starred shortlist in the sidebar, with a star toggle next to
