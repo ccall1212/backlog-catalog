@@ -3,6 +3,18 @@
 All notable changes to Backlog Catalog are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.22.0] - 2026-08-21
+### Changed
+- De-clunking pass, from reviewer feedback that the app felt busy:
+  the toolbar shrinks from twelve controls to search, Filter, Grid,
+  Pick for me, and Add - filters fold into a panel (the button lights up
+  when any filter is active) and rarer actions move to a ... menu.
+- Finished / Started / Replayable are tap toggles (Yes / No / N/A) instead
+  of fields you type Yes into; tapping the same value clears it.
+- Browser alert() popups replaced with a quiet toast in the corner.
+- The Cover image URL field left the Add/Edit dialog - covers are managed
+  from the right-click menu and the type-ahead.
+
 ## [1.21.0] - 2026-08-21
 ### Added
 - Type-ahead when naming a game: start typing in the Game field and

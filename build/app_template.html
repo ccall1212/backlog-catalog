@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Backlog Catalog</title>
-<meta name="app-version" content="1.21.0">
+<meta name="app-version" content="1.22.0">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0f1420">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%236366f1'/><text x='32' y='43' font-size='28' text-anchor='middle' fill='white' font-family='Segoe UI,Arial,sans-serif' font-weight='700'>BC</text></svg>">
@@ -162,6 +162,21 @@ body.theme-light .tagb[style]{border-color:hsl(var(--th),45%,60%);color:hsl(var(
 .cellEdit{width:100%;min-width:56px;padding:4px 6px;font-size:13px}
 td[data-f]{cursor:cell}
 td[data-f],.chk{touch-action:manipulation}
+/* ---- toast, segmented controls, filter bar, more menu ---- */
+#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(14px);background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:10px 18px;font-size:13.5px;box-shadow:0 14px 34px rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:200;max-width:min(520px,90vw)}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.seg{display:inline-flex;gap:0;border:1px solid var(--line);border-radius:9px;overflow:hidden;margin-top:5px}
+.seg button{background:none;border:none;color:var(--muted);font:inherit;font-size:12.5px;padding:7px 13px;cursor:pointer;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:none}
+.seg button:hover{background:var(--panel2)}
+.seg button.on{background:var(--accent);color:#fff;font-weight:600}
+.seg.segoff{opacity:.4}
+.seg.segoff button{cursor:not-allowed}
+.filterbar{display:flex;gap:12px;align-items:end;padding:0 22px 10px;flex-wrap:wrap}
+.filterbar label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+.menuwrap{position:relative}
+.menuwrap .ctx{position:absolute;right:0;top:calc(100% + 6px);left:auto}
+.btn.on{border-color:var(--accent);color:var(--accent)}
 /* ---- title autocomplete ---- */
 .sugwrap{position:relative}
 .sug{position:absolute;left:0;right:0;top:100%;z-index:60;background:var(--panel);border:1px solid var(--line);border-radius:12px;margin-top:4px;padding:4px;max-height:290px;overflow:auto;box-shadow:0 14px 34px rgba(0,0,0,.5)}
@@ -306,24 +321,33 @@ td[data-f],.chk{touch-action:manipulation}
     </div>
     <div id="toolbar" class="toolbar">
       <input id="search" type="search" placeholder="Search games or comments&#8230;">
-      <select id="platform"></select>
-      <select id="tagFilter"></select>
-      <span class="sortwrap"><label>Sort
-        <select id="sort">
-          <option value="group">Group (default)</option>
-          <option value="title">Title A&#8211;Z</option>
-          <option value="rating">Rating (high to low)</option>
-          <option value="platform">Platform</option>
-        </select></label></span>
+      <button id="filterBtn" class="btn" title="Filter and sort">Filter</button>
       <div class="spacer"></div>
       <button id="viewToggle" class="btn" title="Switch between list and cover art">&#9638; Grid</button>
-      <button id="coverBtn" class="btn" title="Look up cover art for games without one">Get covers</button>
+      <button id="pickBtn" class="btn" title="Pick a game for me">&#127922; Pick for me</button>
       <button id="addBtn" class="btn primary">+ Add game</button>
-      <button id="createGroupBtn" class="btn">+ Create group</button>
-      <button id="pickBtn" class="btn" title="Pick a random unfinished game, weighted by how much you want to play it">&#127922; Pick for me</button>
-      <button id="exportJson" class="btn">Export JSON</button>
-      <button id="exportCsv" class="btn">Export CSV</button>
-      <button id="importBtn" class="btn">Import</button>
+      <div class="menuwrap">
+        <button id="moreBtn" class="btn" title="More actions" aria-haspopup="true">&#8943;</button>
+        <div id="moreMenu" class="ctx" style="display:none">
+          <button data-more="group">+ Create group</button>
+          <button data-more="covers">Get cover art&#8230;</button>
+          <div class="sep"></div>
+          <button data-more="import">Import&#8230;</button>
+          <button data-more="json">Export backup (JSON)</button>
+          <button data-more="csv">Export spreadsheet (CSV)</button>
+        </div>
+      </div>
+    </div>
+    <div id="filterBar" class="filterbar" style="display:none">
+      <label>Platform<select id="platform"></select></label>
+      <label>Tag<select id="tagFilter"></select></label>
+      <label>Sort<select id="sort">
+        <option value="group">Group (default)</option>
+        <option value="title">Title A&#8211;Z</option>
+        <option value="rating">Rating (high to low)</option>
+        <option value="platform">Platform</option>
+      </select></label>
+      <button id="filterClear" class="btn">Clear</button>
     </div>
     <main id="main"></main>
     <footer>Tip: <b>double-click</b> any cell to edit it in place (Enter saves, Esc cancels); click the &#8211; under Finished/Started to toggle. Drag rows within a group to reorder; &#215; deletes a group. Auto-saves here; <b>Export JSON</b> to back up.</footer>
@@ -338,13 +362,13 @@ td[data-f],.chk{touch-action:manipulation}
       <label class="full">Platform(s) <span class="hint">click to select</span><div id="mPlats" class="chips"></div></label>
       <label>Group <span class="hint">optional</span><select id="mGroup"></select></label>
       <label>Multiplayer <span class="hint">optional</span><select id="mMpSel"><option value="">No multiplayer</option><option value="story">Multiplayer + Story</option><option value="only">Multiplayer only</option></select></label>
-      <label class="full">Cover image URL <span class="hint">optional &#8212; paste one to override, or clear it</span><input id="mImg" type="text" autocomplete="off" placeholder="https://&#8230;"></label>
+      <input id="mImg" type="hidden">
       <label class="full">Tags <span class="hint">genres</span><div id="mTags" style="margin-top:4px"></div><select id="mTagSel" style="margin-top:6px"></select></label>
-      <label>Finished?<input id="mFin" type="text" list="ynList" autocomplete="off"></label>
-      <label>Started / Played?<input id="mStarted" type="text" list="ynList" autocomplete="off"></label>
+      <label>Finished?<span class="seg" id="mFin" data-val=""><button type="button" data-v="Yes">Yes</button><button type="button" data-v="No">No</button><button type="button" data-v="N/A">N/A</button></span></label>
+      <label>Started / Played?<span class="seg" id="mStarted" data-val=""><button type="button" data-v="Yes">Yes</button><button type="button" data-v="No">No</button><button type="button" data-v="N/A">N/A</button></span></label>
       <label>Rating (1&#8211;10)<input id="mRating" type="number" min="0" max="10" step="0.5"></label>
       <label>100%<select id="mDone"><option value="">Not 100%</option><option value="Want">Want to 100%</option><option value="Yes">100% complete</option></select></label>
-      <label>Replayable?<input id="mReplay" type="text" list="ynList" autocomplete="off"></label>
+      <label>Replayable?<span class="seg" id="mReplay" data-val=""><button type="button" data-v="Yes">Yes</button><button type="button" data-v="No">No</button><button type="button" data-v="N/A">N/A</button></span></label>
       <label class="full">Comments<textarea id="mComments" rows="2"></textarea></label>
     </div>
     <div class="dlg-actions">
@@ -468,14 +492,13 @@ td[data-f],.chk{touch-action:manipulation}
   </div>
 </div>
 
-<datalist id="ynList"><option value="Yes"></option><option value="No"></option><option value="N/A"></option></datalist>
 <input id="importFile" type="file" accept="application/json,.json" hidden>
 
 <script>
 'use strict';
 const SEED = [/*__SEED__*/];
 const LS_KEY = 'gamesLibrary.v1';
-const APP_VERSION = '1.21.0';
+const APP_VERSION = '1.22.0';
 const BK_KEY = LS_KEY + '.lastBackup';
 const DEFAULT_TAGS = ['RPG','FPS','RTS','MMORPG','Platformer','Adventure','Strategy','Racing','Fighting','Puzzle','Horror','Survival','Co-op'];
 const THEME_KEY = LS_KEY + '.theme';
@@ -759,6 +782,7 @@ function render(){
   setText('cnt-all', base.length); setText('cnt-nf', nf.length); setText('cnt-playing', playingList.length); setText('cnt-fin', fin.length); setText('cnt-want', want.length);
   setText('viewTitle', VIEW_TITLES[view]||'');
   buildTagOptions();
+  const fb=f('filterBtn'); if(fb) fb.classList.toggle('on', filters.platform!=='all'||filters.tag!=='all'||filters.sort!=='group');
   const bk=(function(){ const t=Number(localStorage.getItem(BK_KEY)||0); if(!t) return {txt:'never',stale:true}; const d=Math.floor((Date.now()-t)/86400000); return {txt:(d===0?'today':d+'d ago'), stale:d>14}; })();
   const sf=document.getElementById('sideFoot');
   if(sf) sf.innerHTML = games.length+' games &#183; '+games.filter(isFinished).length+' finished<br>v'+APP_VERSION+' &#183; backup: <span class="'+(bk.stale?'bkwarn':'')+'" title="Use Export JSON to back up your library">'+bk.txt+'</span>';
@@ -781,6 +805,16 @@ function buildPlatformOptions(){
 }
 
 function f(id){ return document.getElementById(id); }
+/* non-blocking notice in the corner - replaces the browser alert() popups */
+let toastTimer=null;
+function toast(msg,ms){
+  let t=f('toast');
+  if(!t){ t=document.createElement('div'); t.id='toast'; document.body.appendChild(t); }
+  t.textContent=String(msg);
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'), ms||3200);
+}
 function usedTags(){ const s=new Set(); games.forEach(g=>(g.tags||[]).forEach(t=>s.add(t))); return Array.from(s).sort(); }
 function buildTagOptions(){
   const sel=f('tagFilter'); if(!sel) return;
@@ -808,11 +842,22 @@ function fillGroupSelect(current){
   sel.innerHTML='<option value="">(none)</option>'+gs.map(g=>'<option value="'+esc(g)+'">'+esc(g)+'</option>').join('')+'<option value="__new__">+ New group…</option>';
   sel.value=current||'';
 }
+/* segmented Yes/No/N-A control: tap to set, tap again to clear */
+function segVal(id){ return f(id).dataset.val||''; }
+function segSet(id,v){
+  const el=f(id); el.dataset.val=v||'';
+  [...el.querySelectorAll('button')].forEach(b=>b.classList.toggle('on', b.dataset.v===v));
+}
+function segDisable(id,dis){
+  const el=f(id); el.classList.toggle('segoff',dis);
+  [...el.querySelectorAll('button')].forEach(b=>b.disabled=dis);
+  if(dis) segSet(id,'');
+}
 function updateFinalState(){ /* rating is no longer gated on having played (v1.12.0) */ }
 function updateMpUI(){
   const sel=document.getElementById('mMpSel'); if(sel) sel.value=modalMp;
   const only = (modalMp==='only');
-  ['mFin','mStarted'].forEach(id=>{ const el=f(id); if(el){ el.disabled=only; el.style.opacity=only?'0.45':'1'; if(only) el.value=''; } });
+  segDisable('mFin',only); segDisable('mStarted',only);
   updateFinalState();
 }
 function openModal(id){
@@ -824,8 +869,10 @@ function openModal(id){
   fillGroupSelect(g.group||'');
   modalTags=(g.tags||[]).slice(); renderModalTags();
   modalMp = g.mp||'';
-  f('mFin').value=g.finished||''; f('mStarted').value=g.started||'';
-  f('mDone').value=(g.done100==='Yes'||g.done100==='Want')?g.done100:''; f('mReplay').value=g.replayable||'';
+  segSet('mFin',yes(g.finished)?'Yes':(/^\s*no/i.test(g.finished||'')?'No':(/n\/a/i.test(g.finished||'')?'N/A':'')));
+  segSet('mStarted',yes(g.started)?'Yes':(/^\s*no/i.test(g.started||'')?'No':(/n\/a/i.test(g.started||'')?'N/A':'')));
+  segSet('mReplay',yes(g.replayable)?'Yes':(/^\s*no/i.test(g.replayable||'')?'No':(/n\/a/i.test(g.replayable||'')?'N/A':'')));
+  f('mDone').value=(g.done100==='Yes'||g.done100==='Want')?g.done100:'';
   f('mRating').value=(g.rating===0||g.rating)?g.rating:'';
   f('mComments').value=g.comments||'';
   f('mImg').value=g.img||'';
@@ -840,10 +887,10 @@ function saveModal(){
   if(dup && !confirm('Another game is already called "'+title+'". Save anyway?')) return;
   const platforms=modalPlats.slice();
   const rating=num(f('mRating').value);
-  const startedYes = (yes(f('mStarted').value) || yes(f('mFin').value)) && modalMp!=='only';
+  const startedYes = (yes(segVal('mStarted')) || yes(segVal('mFin'))) && modalMp!=='only';
 
   let group=f('mGroup').value; if(group==='__new__') group='';
-  const data={ title, platforms:rankPlats(platforms), group, tags:modalTags.slice(), mp:modalMp, finished:f('mFin').value.trim(), started:f('mStarted').value.trim(), done100:f('mDone').value, replayable:f('mReplay').value.trim(), rating, comments:f('mComments').value.trim() };
+  const data={ title, platforms:rankPlats(platforms), group, tags:modalTags.slice(), mp:modalMp, finished:segVal('mFin'), started:segVal('mStarted'), done100:f('mDone').value, replayable:segVal('mReplay'), rating, comments:f('mComments').value.trim() };
   if(modalMp==='only'){ data.finished=''; data.started=''; data.final=null; }
   else if(yes(data.finished) && !data.started) data.started='Yes';
   const imgVal=f('mImg').value.trim();
@@ -874,7 +921,7 @@ function renderGList(){
 function saveGroup(){
   const name=f('gName').value.trim();
   if(!name){ f('gName').classList.add('err'); f('gName').focus(); return; }
-  if(!gChecked.size){ alert('Tick at least one game to put in this group.'); return; }
+  if(!gChecked.size){ toast('Tick at least one game to put in this group.'); return; }
   games.forEach(g=>{ if(gChecked.has(g.id)) g.group=name; });
   save(); closeGroupModal(); if(filters.sort!=='group'){ filters.sort='group'; f('sort').value='group'; } render();
 }
@@ -906,7 +953,7 @@ function exportCSV(){
 function importJSON(e){
   const file=e.target.files[0]; if(!file) return;
   const reader=new FileReader();
-  reader.onload=()=>{ try{ const parsed=JSON.parse(reader.result); const a=Array.isArray(parsed)?parsed:((parsed&&Array.isArray(parsed.games))?parsed.games:null); if(!a) throw new Error('File is not a games list'); if(confirm('Import '+a.length+' games? This replaces your current '+games.length+'.')){ if(parsed&&!Array.isArray(parsed)&&parsed.groupColors&&typeof parsed.groupColors==='object'){ groupColors={}; Object.keys(parsed.groupColors).forEach(k=>{ const v=parsed.groupColors[k]; if(typeof v==='string'&&/^#[0-9a-fA-F]{6}$/.test(v)) groupColors[k]=v; }); saveGroupColors(); } games=prep(a.map(x=>Object.assign({title:'',group:'',ord:0,tags:[],mp:'',finished:'',done100:'',replayable:'',rating:null,comments:''},x)), true); save(); view='all'; buildPlatformOptions(); render(); } }catch(err){ alert('Could not import: '+err.message); } e.target.value=''; };
+  reader.onload=()=>{ try{ const parsed=JSON.parse(reader.result); const a=Array.isArray(parsed)?parsed:((parsed&&Array.isArray(parsed.games))?parsed.games:null); if(!a) throw new Error('File is not a games list'); if(confirm('Import '+a.length+' games? This replaces your current '+games.length+'.')){ if(parsed&&!Array.isArray(parsed)&&parsed.groupColors&&typeof parsed.groupColors==='object'){ groupColors={}; Object.keys(parsed.groupColors).forEach(k=>{ const v=parsed.groupColors[k]; if(typeof v==='string'&&/^#[0-9a-fA-F]{6}$/.test(v)) groupColors[k]=v; }); saveGroupColors(); } games=prep(a.map(x=>Object.assign({title:'',group:'',ord:0,tags:[],mp:'',finished:'',done100:'',replayable:'',rating:null,comments:''},x)), true); save(); view='all'; buildPlatformOptions(); render(); } }catch(err){ toast('Could not import: '+err.message); } e.target.value=''; };
   reader.readAsText(file);
 }
 /* ---- Steam import (relay fetch or page paste; ALWAYS a non-destructive merge) ---- */
@@ -1071,7 +1118,7 @@ function steamApply(){
   if(!stResults) return;
   const r=steamMerge(stResults);
   save(); buildPlatformOptions(); render(); closeSteamModal();
-  alert('Steam import done: '+r.matched+' games updated, '+r.added+' added'
+  toast('Steam import done: '+r.matched+' games updated, '+r.added+' added'
     +(r.playedSince?', '+r.playedSince+' with new playtime':'')+'.');
 }
 
@@ -1228,7 +1275,7 @@ async function fetchCovers(){
   }
   save(); coverRun=false;
   if(btn) btn.textContent='Get covers';
-  alert('Cover art: found '+found+' of '+total+' looked up. Games already imported from Steam use their store art automatically.');
+  toast('Cover art: found '+found+' of '+total+' looked up. Games already imported from Steam use their store art automatically.');
   render();
 }
 
@@ -1465,8 +1512,8 @@ async function ctxAction(act){
     try{
       const u=await wikiCover(g.title);
       if(u){ g.img=u; g.imgManual=false; save(); render(); }
-      else alert('No confident match on Wikipedia for "'+g.title+'".\n\nTry right-click again and use "Set cover image URL".');
-    }catch(err){ alert('Lookup failed: '+err.message); }
+      else toast('No confident match on Wikipedia for "'+g.title+'".\n\nTry right-click again and use "Set cover image URL".');
+    }catch(err){ toast('Lookup failed: '+err.message); }
   }
 }
 function onMainClick(e){
@@ -1506,7 +1553,35 @@ function bind(){
     f('viewToggle').innerHTML=(viewMode==='grid')?'&#9776; List':'&#9638; Grid';
     render();
   });
-  f('coverBtn').addEventListener('click',openCoverModal);
+  // toolbar consolidation: filters fold behind Filter, rare actions behind the ... menu
+  f('filterBtn').addEventListener('click',()=>{
+    const b=f('filterBar'); b.style.display=(b.style.display==='none')?'flex':'none';
+  });
+  f('filterClear').addEventListener('click',()=>{
+    filters.platform='all'; filters.tag='all'; filters.sort='group';
+    f('platform').value='all'; f('sort').value='group';
+    render(); f('filterBar').style.display='none'; f('filterBtn').classList.remove('on');
+  });
+  f('moreBtn').addEventListener('click',e=>{
+    e.stopPropagation();
+    const m=f('moreMenu'); m.style.display=(m.style.display==='none')?'block':'none';
+  });
+  f('moreMenu').addEventListener('click',e=>{
+    const b=e.target.closest('[data-more]'); if(!b) return;
+    f('moreMenu').style.display='none';
+    if(b.dataset.more==='group') openGroupModal();
+    else if(b.dataset.more==='covers') openCoverModal();
+    else if(b.dataset.more==='import') document.getElementById('importModal').classList.add('show');
+    else if(b.dataset.more==='json') exportJSON();
+    else if(b.dataset.more==='csv') exportCSV();
+  });
+  document.addEventListener('click',e=>{ if(!e.target.closest('.menuwrap')) f('moreMenu').style.display='none'; });
+  // segmented Yes/No/N-A controls: tap to set, tap the same one to clear
+  document.getElementById('modal').addEventListener('click',e=>{
+    const b=e.target.closest('.seg button'); if(!b || b.disabled) return;
+    const seg=b.parentElement;
+    segSet(seg.id, seg.dataset.val===b.dataset.v ? '' : b.dataset.v);
+  });
   f('cvCancel').addEventListener('click',closeCoverModal);
   f('cpCancel').addEventListener('click',closeCoverPicker);
   f('cpGrid').addEventListener('click',e=>{
@@ -1519,7 +1594,7 @@ function bind(){
   f('cvFetch').addEventListener('click',fetchCovers);
   f('cvClear').addEventListener('click',()=>{
     const n=games.filter(g=>g.img&&!g.imgManual).length;
-    if(!n){ alert('No looked-up covers to clear.'); return; }
+    if(!n){ toast('No looked-up covers to clear.'); return; }
     if(confirm('Clear '+n+' looked-up cover'+(n===1?'':'s')+'? Steam art and hand-set covers are kept.')){
       games.forEach(g=>{ if(g.img && !g.imgManual) g.img=''; });
       save(); closeCoverModal(); render();
@@ -1533,14 +1608,10 @@ function bind(){
   });
   document.getElementById('coverModal').addEventListener('click',e=>{ if(e.target.id==='coverModal') closeCoverModal(); });
   f('addBtn').addEventListener('click',()=>openModal(null));
-  f('createGroupBtn').addEventListener('click',openGroupModal);
   f('pickBtn').addEventListener('click',openPickModal);
   f('pkCancel').addEventListener('click',closePickModal);
   f('pkGo').addEventListener('click',pickRandom);
   document.getElementById('pickModal').addEventListener('click',e=>{ if(e.target.id==='pickModal') closePickModal(); });
-  f('exportJson').addEventListener('click',exportJSON);
-  f('exportCsv').addEventListener('click',exportCSV);
-  f('importBtn').addEventListener('click',()=>document.getElementById('importModal').classList.add('show'));
   f('impCancel').addEventListener('click',()=>document.getElementById('importModal').classList.remove('show'));
   document.getElementById('importModal').addEventListener('click',e=>{ if(e.target.id==='importModal') e.target.classList.remove('show'); });
   f('impFile').addEventListener('click',()=>{ document.getElementById('importModal').classList.remove('show'); f('importFile').click(); });
@@ -1552,7 +1623,7 @@ function bind(){
   f('stAuto').addEventListener('change',e=>{
     const p=(f('stProfile').value||'').trim();
     if(e.target.checked){
-      if(!p){ alert('Enter your Steam profile first, then tick this box.'); e.target.checked=false; return; }
+      if(!p){ toast('Enter your Steam profile first, then tick this box.'); e.target.checked=false; return; }
       setAutoCfg({profile:p, last:''});
     } else setAutoCfg(null);
   });
@@ -1586,8 +1657,6 @@ function bind(){
   f('mCancel').addEventListener('click',closeModal);
   f('mSave').addEventListener('click',saveModal);
   f('mMpSel').addEventListener('change',e=>{ modalMp=e.target.value; updateMpUI(); });
-  f('mStarted').addEventListener('input',updateFinalState);
-  f('mFin').addEventListener('input',updateFinalState);
   f('mGroup').addEventListener('change',e=>{ if(e.target.value==='__new__'){ const name=(prompt('New group name:')||'').trim(); fillGroupSelect(name); } });
   f('mTagSel').addEventListener('change',e=>{ let v=e.target.value; if(!v) return; if(v==='__new__'){ v=(prompt('New tag name:')||'').trim(); } if(v && !modalTags.some(t=>t.toLowerCase()===v.toLowerCase())) modalTags.push(v); renderModalTags(); });
   f('mTags').addEventListener('click',e=>{ const b=e.target.closest('[data-rmtag]'); if(!b) return; const i=modalTags.indexOf(b.dataset.rmtag); if(i>=0) modalTags.splice(i,1); renderModalTags(); });
