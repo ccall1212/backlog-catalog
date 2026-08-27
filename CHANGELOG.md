@@ -3,6 +3,28 @@
 All notable changes to Backlog Catalog are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.24.1] - 2026-08-27
+### Added
+- Favorites: a starred shortlist in the sidebar, with a star toggle next to
+  each row's edit and delete buttons. Favourited games show a star in grid
+  view too.
+- Replayability view in the sidebar, listing everything rated above 6.
+- The Steam import can give imported games a "Steam" platform alongside PC,
+  so a large library does not have to be tagged by hand. On by default, the
+  choice is remembered, and it applies to the daily auto-sync as well.
+
+### Changed
+- The edit dialog hides Finished, Rating, 100% and Replayability until a
+  game is marked as Started / Played. Comments are always available.
+- Started / Played moved to the left column, Finished to the right, and the
+  question marks are gone from both, plus Replayability.
+- Started / Played no longer offers N/A; existing N/A answers become blank.
+- Replayable is now Replayability, a 0-10 rating rather than Yes/No. Old
+  answers map to numbers (Yes to 8, No to 2) and the original string is kept
+  in replayableLegacy so the mapping can be revisited.
+- Rating and Replayability are half-step sliders with a 1-10 scale printed
+  under them, replacing the number box and the Yes/No buttons.
+
 ## [1.24.0] - 2026-08-27
 ### Added
 - The missing-cover-art banner can now filter the view down to just the

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Backlog Catalog</title>
-<meta name="app-version" content="1.24.0">
+<meta name="app-version" content="1.24.1">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0f1420">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%236366f1'/><text x='32' y='43' font-size='28' text-anchor='middle' fill='white' font-family='Segoe UI,Arial,sans-serif' font-weight='700'>BC</text></svg>">
@@ -111,6 +111,26 @@ tr.dto td{box-shadow:inset 0 2px 0 var(--accent)}
 .icon{background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;padding:2px 5px;border-radius:6px}
 .icon:hover{background:var(--panel2);color:var(--text)}.icon.danger:hover{color:var(--red)}
 .actions{white-space:nowrap;text-align:right}
+.sldwrap{position:relative;margin-top:5px;padding-bottom:13px}
+.sldwrap .slider{width:100%;display:block;margin:0}  /* UA margin would shift the track off the tick row */
+/* The thumb travels between half its own width and (track - half), so a tick for
+   value v sits at 9px + (100% - 18px) * v/10 - not a plain percentage. */
+.ticks{position:relative;height:11px;margin-top:-2px}
+.ticks span{position:absolute;transform:translateX(-50%);font-size:9px;color:var(--muted);font-variant-numeric:tabular-nums;user-select:none}
+.slider{-webkit-appearance:none;appearance:none;height:26px;background:none;cursor:pointer}
+.slider::-webkit-slider-runnable-track{height:6px;border-radius:999px;background:var(--panel2);border:1px solid var(--line)}
+.slider::-moz-range-track{height:6px;border-radius:999px;background:var(--panel2);border:1px solid var(--line)}
+.slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;margin-top:-7px;border-radius:50%;background:var(--accent);border:2px solid var(--bg);box-shadow:0 1px 4px rgba(0,0,0,.4)}
+.slider::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--accent);border:2px solid var(--bg);box-shadow:0 1px 4px rgba(0,0,0,.4)}
+.slider:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.sval{margin-left:6px;font-variant-numeric:tabular-nums}
+.sval.set{color:var(--text);font-weight:700}
+.icon.star.on{color:#f5b301}
+.icon.star:hover{color:#f5b301}
+.nav-item .navstar{color:#f5b301;font-size:12px}
+.nav-item.active .navstar{color:#fff}
+.gfav{position:absolute;top:8px;left:8px;color:#f5b301;font-size:15px;text-shadow:0 1px 3px rgba(0,0,0,.65);pointer-events:none}
+.gdone + .gfav{left:36px}   /* both badges live top-left; slide the star clear of the check */
 .empty{padding:40px;text-align:center;color:var(--muted)}
 .grp-head{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--panel);border:1px solid var(--line);border-radius:8px;font-weight:700;letter-spacing:.03em;margin:16px 0 8px}
 .grp-head:first-child{margin-top:4px}
@@ -305,6 +325,8 @@ td[data-f],.chk{touch-action:manipulation}
     <button type="button" id="mAddTop" class="btn primary addtop">+ Add</button>
     <nav class="nav">
       <button class="nav-item" data-view="all">All Games <span class="cnt" id="cnt-all"></span></button>
+      <button class="nav-item" data-view="favs"><span class="navstar">&#9733;</span> Favorites <span class="cnt" id="cnt-favs"></span></button>
+      <button class="nav-item" data-view="replay">Replayability <span class="cnt" id="cnt-replay"></span></button>
       <button class="nav-item parent" data-view="backlog"><span class="chev">&#9662;</span> Backlog</button>
       <div class="nav-sub">
         <button class="nav-item sub" data-view="bl-nf">Not Finished <span class="cnt" id="cnt-nf"></span></button>
@@ -359,11 +381,11 @@ td[data-f],.chk{touch-action:manipulation}
       <label>Multiplayer <span class="hint">optional</span><select id="mMpSel"><option value="">No multiplayer</option><option value="story">Multiplayer + Story</option><option value="only">Multiplayer only</option></select></label>
       <input id="mImg" type="hidden">
       <label class="full">Tags <span class="hint">genres</span><div id="mTags" style="margin-top:4px"></div><select id="mTagSel" style="margin-top:6px"></select></label>
-      <label>Finished?<span class="seg" id="mFin" data-val=""><button type="button" data-v="Yes">Yes</button><button type="button" data-v="No">No</button><button type="button" data-v="N/A">N/A</button></span></label>
-      <label>Started / Played?<span class="seg" id="mStarted" data-val=""><button type="button" data-v="Yes">Yes</button><button type="button" data-v="No">No</button><button type="button" data-v="N/A">N/A</button></span></label>
-      <label>Rating (1&#8211;10)<input id="mRating" type="number" min="0" max="10" step="0.5"></label>
-      <label>100%<select id="mDone"><option value="">Not 100%</option><option value="Want">Want to 100%</option><option value="Yes">100% complete</option></select></label>
-      <label>Replayable?<span class="seg" id="mReplay" data-val=""><button type="button" data-v="Yes">Yes</button><button type="button" data-v="No">No</button><button type="button" data-v="N/A">N/A</button></span></label>
+      <label>Started / Played<span class="seg" id="mStarted" data-val=""><button type="button" data-v="Yes">Yes</button><button type="button" data-v="No">No</button></span></label>
+      <label class="playonly">Finished<span class="seg" id="mFin" data-val=""><button type="button" data-v="Yes">Yes</button><button type="button" data-v="No">No</button><button type="button" data-v="N/A">N/A</button></span></label>
+      <label class="playonly">Rating <span class="hint sval" id="mRatingOut">not rated</span><div class="sldwrap"><input id="mRating" class="slider" type="range" min="0" max="10" step="0.5" value="0" list="mScale"><div class="ticks" data-ticks="1"></div></div></label>
+      <label class="playonly">100%<select id="mDone"><option value="">Not 100%</option><option value="Want">Want to 100%</option><option value="Yes">100% complete</option></select></label>
+      <label class="playonly">Replayability <span class="hint sval" id="mReplayOut">not rated</span><div class="sldwrap"><input id="mReplay" class="slider" type="range" min="0" max="10" step="0.5" value="0" list="mScale"><div class="ticks" data-ticks="1"></div></div></label>
       <label class="full">Comments<textarea id="mComments" rows="2"></textarea></label>
     </div>
     <div class="dlg-actions">
@@ -430,6 +452,7 @@ td[data-f],.chk{touch-action:manipulation}
       <label class="hint">On Steam, open your <b>All Games</b> page, scroll to the bottom so every game loads, select the list (Ctrl+A), copy, and paste it here.</label>
       <textarea id="stPaste" rows="9" style="width:100%;margin-top:6px" placeholder="Dead by Daylight&#10;Dead by Daylight&#10;TOTAL PLAYED&#10;701.9 hours&#10;LAST PLAYED&#10;Jun 15&#10;ACHIEVEMENTS&#10;147/303&#10;..."></textarea>
     </div>
+    <label class="hint" style="display:block;margin-top:12px"><input type="checkbox" id="stPlat" style="width:auto;margin-right:7px;vertical-align:-2px">Also give these games the <b>Steam</b> platform <span style="opacity:.75">&#8212; they keep PC as well, so both filters find them</span></label>
     <div id="stStatus" class="hint" style="margin-top:10px"></div>
     <div id="stPreview" style="display:none;margin-top:8px"></div>
     <div class="dlg-actions">
@@ -510,7 +533,7 @@ td[data-f],.chk{touch-action:manipulation}
 'use strict';
 const SEED = [];
 const LS_KEY = 'backlogCatalog.starter.v1';
-const APP_VERSION = '1.24.0';
+const APP_VERSION = '1.24.1';
 const BK_KEY = LS_KEY + '.lastBackup';
 const DEFAULT_TAGS = ['RPG','FPS','RTS','MMORPG','Platformer','Adventure','Strategy','Racing','Fighting','Puzzle','Horror','Survival','Co-op'];
 const THEME_KEY = LS_KEY + '.theme';
@@ -530,10 +553,12 @@ function applyTheme(name){
   if(tc){ requestAnimationFrame(function(){ tc.setAttribute('content', (getComputedStyle(document.body).getPropertyValue('--bg')||'#0f1420').trim()); }); }
 }
 const PLATFORMS = ['PC','Xbox','PlayStation','Nintendo'];
-const PRANK = {PC:0,Xbox:1,PlayStation:2,Nintendo:3};
+const PRANK = {PC:0,Steam:0.5,Xbox:1,PlayStation:2,Nintendo:3};
 const PLAT_CLASS = {PC:'p-pc',Xbox:'p-xbox',PlayStation:'p-ps',Nintendo:'p-nin'};
 const TITLE_ALIASES = {'final fantasy x (10)':'Final Fantasy X'};
-const VIEW_TITLES = {all:'All Games',backlog:'Backlog','bl-nf':'Not Finished','bl-playing':'Playing Now','bl-fin':'Finished','bl-want':'Want to 100%','bl-done':'100% Complete','bl-mp':'Multiplayer',stats:'Stats'};
+/* Games worth another run: replayability strictly above this. */
+const REPLAY_MIN = 6;
+const VIEW_TITLES = {all:'All Games',favs:'Favorites',replay:'Replayability',backlog:'Backlog','bl-nf':'Not Finished','bl-playing':'Playing Now','bl-fin':'Finished','bl-want':'Want to 100%','bl-done':'100% Complete','bl-mp':'Multiplayer',stats:'Stats'};
 const GROUP_RULES = [
   [/lord of the rings/i,'The Lord of the Rings'],[/kingdom under fire/i,'Kingdom Under Fire'],[/kingdom hearts/i,'Kingdom Hearts'],
   [/assassin.?s creed|assissin/i,"Assassin's Creed"],[/tomb raider/i,'Tomb Raider'],[/final fantasy/i,'Final Fantasy'],
@@ -574,7 +599,7 @@ function mergeDupes(arr){
     const fin=anyYes('finished')?'Yes':firstNon('finished');
     out.push({ id:grp[0].id||uid(), title:grp[0].title, platforms:rankPlats(plats), group:firstNon('group'), ord:(grp[0].ord||0), tags:tags, mp:(grp.some(g=>g.mp==='only'||g.mp===true)?'only':(grp.some(g=>g.mp==='story')?'story':'')), finished:fin,
       started:(yes(fin)||anyYes('started'))?'Yes':'',
-      done100:(grp.some(g=>g.done100==='Yes')?'Yes':(grp.some(g=>g.done100==='Want')?'Want':'')), replayable:anyYes('replayable')?'Yes':firstNon('replayable'),
+      done100:(grp.some(g=>g.done100==='Yes')?'Yes':(grp.some(g=>g.done100==='Want')?'Want':'')), replayable:(function(){ const rs=grp.map(replayNum).filter(x=>x!=null); return rs.length?Math.max.apply(null,rs):null; })(),
       want:wants.length?Math.max.apply(null,wants):null, final:finals.length?Math.max.apply(null,finals):null, comments:comments.join(' / ') });
   });
   return out;
@@ -588,6 +613,7 @@ function prep(arr, doMerge){
     if(g.group===undefined||g.group===null) g.group='';
     if(typeof g.ord!=='number') g.ord=0;
     if(!Array.isArray(g.tags)) g.tags=[];
+    g.fav = (g.fav===true||g.fav==='Yes'||g.fav==='yes'||g.fav===1);  // shortlist flag, see isFav
     if(typeof g.appid!=='number'){ const a=parseInt(g.appid,10); g.appid = isNaN(a)?null:a; }
     if(typeof g.img!=='string') g.img='';   // resolved cover URL, cached so each lookup happens once
     if(typeof g.hours!=='number'){ const h=Number(g.hours); g.hours = isNaN(h)?null:h; }
@@ -612,6 +638,16 @@ function prep(arr, doMerge){
       g.done100 = wasDone ? 'Yes' : (wantsIt ? 'Want' : '');
     }
     delete g.want100;
+    /* Replayability: Yes/No/N-A -> a 0-10 rating (v1.24.1). See replayNum. */
+    if(typeof g.replayable!=='number'){
+      const legacy=(g.replayable==null?'':String(g.replayable)).trim();
+      const n=replayNum(g);
+      if(legacy && isNaN(parseFloat(legacy)) && g.replayableLegacy===undefined) g.replayableLegacy=legacy;
+      g.replayable=n;
+    } else if(!(g.replayable>0)) g.replayable=null;
+    /* Started / Played lost its N/A choice in v1.24.1 - nothing renders it now,
+       so fold those answers back to "unanswered" instead of stranding them. */
+    if(/n\/a/i.test(g.started||'')) g.started='';
   });
   return doMerge ? mergeDupes(arr) : arr;
 }
@@ -684,13 +720,13 @@ function gameCells(g, inGroup){
     +'<td class="center" data-label="Finished">'+statusCell(g,'finished')+'</td>'
     +'<td class="center" data-label="Played">'+statusCell(g,'started')+'</td>'
     +'<td class="center xtra" data-label="100%" data-f="done100" title="Double-click to edit">'+done100Cell(g)+'</td>'
-    +'<td class="center xtra" data-label="Replay" data-f="replayable" title="Double-click to edit">'+esc(g.replayable||'')+'</td>'
+    +'<td class="center xtra" data-label="Replay" data-f="replayable" title="Replayability - double-click to edit">'+(replayNum(g)!=null?replayNum(g):'')+'</td>'
     +'<td class="center" data-label="Rating" data-f="rating" title="Rating - double-click to edit">'+ratingCell(g)+'</td>'
     +'<td class="comments xtra" data-label="Notes" data-f="comments" title="Double-click to edit">'+esc(g.comments||'')+'</td>'
-    +'<td class="actions">'+arrows+'<button class="icon" data-act="edit" data-id="'+g.id+'" title="Edit">&#9998;</button>'
+    +'<td class="actions">'+arrows+favBtn(g)+'<button class="icon" data-act="edit" data-id="'+g.id+'" title="Edit">&#9998;</button>'
     +'<button class="icon danger" data-act="del" data-id="'+g.id+'" title="Delete">&#128465;</button></td>';
 }
-const HEAD_MAIN = '<th>Game</th><th>Platform</th><th class="center">Finished</th><th class="center">Started/Played</th><th class="center xtra">100%</th><th class="center xtra">Replay</th><th class="center">Rating</th><th class="xtra">Comments</th><th></th>';
+const HEAD_MAIN = '<th>Game</th><th>Platform</th><th class="center">Finished</th><th class="center">Started/Played</th><th class="center xtra">100%</th><th class="center xtra">Replayability</th><th class="center">Rating</th><th class="xtra">Comments</th><th></th>';
 function tableHtml(list){
   if(!list.length) return '<div class="empty">Nothing here yet. Click <b>+ Add game</b> to start.</div>';
   return '<div class="tablewrap"><table><thead><tr>'+HEAD_MAIN+'</tr></thead><tbody>'
@@ -714,12 +750,24 @@ function groupTableHtml(list){
    the first four covers; tapping one opens just that group. */
 let openFolder='';
 let viewMode=(function(){ try{ return localStorage.getItem(LS_KEY+'.viewMode')||'list'; }catch(e){ return 'list'; } })();
+/* Favourites are a flat, personal shortlist - deliberately separate from the
+   backlog views, which are all derived from progress. Stored as a plain
+   boolean so exports and imports carry it with no extra handling. */
+function isFav(g){ return g.fav===true; }
+function favBtn(g){
+  const on=isFav(g);
+  return '<button class="icon star'+(on?' on':'')+'" data-act="fav" data-id="'+g.id+'" title="'
+    +(on?'Remove from Favorites':'Add to Favorites')+'" aria-pressed="'+(on?'true':'false')+'">'
+    +(on?'&#9733;':'&#9734;')+'</button>';
+}
+function toggleFav(id){ const g=games.find(x=>x.id===id); if(!g) return; g.fav=!isFav(g); save(); render(); }
 function gridCard(g){
   const r=ratingNum(g);
   return '<button class="gcard" data-act="edit" data-id="'+g.id+'" title="'+esc(g.title)+'">'
     +coverHtml(g,'gcover')
     +(r!=null?'<span class="gbadge'+(r>7?' hot':'')+'">'+r+'</span>':'')
     +(isFinished(g)?'<span class="gdone" title="Finished">&#10003;</span>':'')
+    +(isFav(g)?'<span class="gfav" title="Favorite">&#9733;</span>':'')
     +'<span class="gname">'+esc(g.title)+'</span></button>';
 }
 function folderTile(name, members){
@@ -813,7 +861,9 @@ function render(){
   const base=visibleGames();
   const nf=base.filter(g=>!isFinished(g)&&!isMp(g)), fin=base.filter(isFinished), want=base.filter(wants100);
   const playingList=base.filter(g=>isStarted(g)&&!isFinished(g)&&!isMp(g));
-  setText('cnt-all', base.length); setText('cnt-nf', nf.length); setText('cnt-playing', playingList.length); setText('cnt-fin', fin.length); setText('cnt-want', want.length);
+  const favList=base.filter(isFav);
+  const replayList=base.filter(g=>{ const r=replayNum(g); return r!=null && r>REPLAY_MIN; });
+  setText('cnt-all', base.length); setText('cnt-nf', nf.length); setText('cnt-playing', playingList.length); setText('cnt-fin', fin.length); setText('cnt-want', want.length); setText('cnt-favs', favList.length); setText('cnt-replay', replayList.length);
   setText('viewTitle', VIEW_TITLES[view]||'');
   buildTagOptions();
   const fb=f('filterBtn'); if(fb) fb.classList.toggle('on', filters.platform!=='all'||filters.tag!=='all'||filters.sort!=='group'||filters.noart);
@@ -825,6 +875,8 @@ function render(){
   if(!games.length){ main.innerHTML=welcomeHtml(); document.getElementById('toolbar').style.display='none'; return; }
   if(view==='stats'){ main.innerHTML=statsHtml(); }
   else if(view==='all'){ main.innerHTML=renderTable(base); }
+  else if(view==='favs'){ main.innerHTML=favList.length?renderTable(favList):'<div class="empty">No favorites yet &#8212; tap the &#9734; next to any game to add it here.</div>'; }
+  else if(view==='replay'){ main.innerHTML=replayList.length?renderTable(replayList):'<div class="empty">Nothing rated above '+REPLAY_MIN+' for replayability yet &#8212; rate a game you would happily start over.</div>'; }
   else if(view==='backlog'){ main.innerHTML=grp('NOT FINISHED',nf)+grp('FINISHED',fin)+grp('WANT TO 100% &#8212; go back &amp; 100%',want); }
   else if(view==='bl-nf'){ main.innerHTML=renderTable(nf); }
   else if(view==='bl-playing'){ main.innerHTML=renderTable(playingList); }
@@ -885,6 +937,42 @@ function fillGroupSelect(current){
   sel.value=current||'';
 }
 /* segmented Yes/No/N-A control: tap to set, tap again to clear */
+/* Rating and Replayability are 0-10 sliders in half steps, where 0 means "not
+   rated" - a range input always holds a value, so zero is what gives these
+   fields an empty state at all. Treat 0 as null everywhere outside the DOM. */
+/* Replayability became a 0-10 rating in v1.24.1; before that it was Yes/No/N-A.
+   Old answers are mapped to numbers (Yes -> 8, No -> 2) rather than dropped, and
+   the original string is kept in replayableLegacy so the mapping stays reversible
+   if those numbers turn out to be wrong. N/A and blank mean "not rated" (null). */
+function replayNum(g){
+  const v=(g&&g.replayable);
+  if(typeof v==='number') return v>0?v:null;
+  const n=parseFloat(v);
+  if(!isNaN(n)) return n>0?n:null;
+  if(/^\s*yes/i.test(v||'')) return 8;
+  if(/^\s*no/i.test(v||'')) return 2;
+  return null;
+}
+function sliderVal(id){ const v=parseFloat(f(id).value); return (isNaN(v)||v<=0)?null:v; }
+function sliderSet(id,v){ const n=Number(v); f(id).value=(!isNaN(n)&&n>0)?Math.min(10,n):0; paintSlider(id); }
+/* 1-10 written under both sliders. 0 is deliberately unlabelled: it is the
+   "not rated" end, and the readout beside the label already says so. */
+function buildScales(){
+  const dl=document.createElement('datalist'); dl.id='mScale';
+  let html='';
+  for(let v=1; v<=10; v++){
+    dl.innerHTML+='<option value="'+v+'"></option>';
+    html+='<span style="left:calc(9px + (100% - 18px) * '+(v/10)+')">'+v+'</span>';
+  }
+  document.body.appendChild(dl);
+  [...document.querySelectorAll('.ticks[data-ticks]')].forEach(t=>{ t.innerHTML=html; });
+}
+function paintSlider(id){
+  const out=f(id+'Out'); if(!out) return;
+  const v=sliderVal(id);
+  out.textContent = (v==null) ? 'not rated' : String(v);
+  out.classList.toggle('set', v!=null);
+}
 function segVal(id){ return f(id).dataset.val||''; }
 function segSet(id,v){
   const el=f(id); el.dataset.val=v||'';
@@ -896,11 +984,25 @@ function segDisable(id,dis){
   if(dis) segSet(id,'');
 }
 function updateFinalState(){ /* rating is no longer gated on having played (v1.12.0) */ }
+/* Judging a game you have not played yet is mostly noise, so Finished,
+   Rating, 100% and Replayable stay hidden until Started / Played is Yes.
+   Two escapes: multiplayer-only games have no campaign to start yet can
+   still be rated, and a game that ALREADY carries any of these values
+   keeps them on screen - otherwise older entries (or a Steam import) could
+   hold data with no way to reach it. Comments are never gated. */
+function updatePlayedUI(){
+  const set=v=>v!==''&&v!=null;
+  const played = segVal('mStarted')==='Yes' || modalMp==='only'
+    || set(segVal('mFin'))
+    || set(f('mDone').value) || sliderVal('mRating')!=null || sliderVal('mReplay')!=null;
+  [...document.querySelectorAll('#modal label.playonly')].forEach(l=>{ l.style.display=played?'':'none'; });
+}
 function updateMpUI(){
   const sel=document.getElementById('mMpSel'); if(sel) sel.value=modalMp;
   const only = (modalMp==='only');
   segDisable('mFin',only); segDisable('mStarted',only);
   updateFinalState();
+  updatePlayedUI();
 }
 function openModal(id){
   editingId=id;
@@ -912,10 +1014,10 @@ function openModal(id){
   modalTags=(g.tags||[]).slice(); renderModalTags();
   modalMp = g.mp||'';
   segSet('mFin',yes(g.finished)?'Yes':(/^\s*no/i.test(g.finished||'')?'No':(/n\/a/i.test(g.finished||'')?'N/A':'')));
-  segSet('mStarted',yes(g.started)?'Yes':(/^\s*no/i.test(g.started||'')?'No':(/n\/a/i.test(g.started||'')?'N/A':'')));
-  segSet('mReplay',yes(g.replayable)?'Yes':(/^\s*no/i.test(g.replayable||'')?'No':(/n\/a/i.test(g.replayable||'')?'N/A':'')));
+  segSet('mStarted',yes(g.started)?'Yes':(/^\s*no/i.test(g.started||'')?'No':''));
+  sliderSet('mReplay', replayNum(g));
   f('mDone').value=(g.done100==='Yes'||g.done100==='Want')?g.done100:'';
-  f('mRating').value=(g.rating===0||g.rating)?g.rating:'';
+  sliderSet('mRating', g.rating);
   f('mComments').value=g.comments||'';
   f('mImg').value=g.img||'';
   updateMpUI();
@@ -928,11 +1030,11 @@ function saveModal(){
   const dup=games.some(x=>x.id!==editingId && (x.title||'').trim().toLowerCase()===title.toLowerCase());
   if(dup && !confirm('Another game is already called "'+title+'". Save anyway?')) return;
   const platforms=modalPlats.slice();
-  const rating=num(f('mRating').value);
+  const rating=sliderVal('mRating');
   const startedYes = (yes(segVal('mStarted')) || yes(segVal('mFin'))) && modalMp!=='only';
 
   let group=f('mGroup').value; if(group==='__new__') group='';
-  const data={ title, platforms:rankPlats(platforms), group, tags:modalTags.slice(), mp:modalMp, finished:segVal('mFin'), started:segVal('mStarted'), done100:f('mDone').value, replayable:segVal('mReplay'), rating, comments:f('mComments').value.trim() };
+  const data={ title, platforms:rankPlats(platforms), group, tags:modalTags.slice(), mp:modalMp, finished:segVal('mFin'), started:segVal('mStarted'), done100:f('mDone').value, replayable:sliderVal('mReplay'), rating, comments:f('mComments').value.trim() };
   if(modalMp==='only'){ data.finished=''; data.started=''; data.final=null; }
   else if(yes(data.finished) && !data.started) data.started='Yes';
   const imgVal=f('mImg').value.trim();
@@ -987,7 +1089,7 @@ function exportJSON(){
 function csvCell(v){ v=(v==null?'':String(v)); return /[",\n]/.test(v)? '"'+v.replace(/"/g,'""')+'"' : v; }
 function exportCSV(){
   // must stay in lockstep with the value array below - 11 columns
-  const head=['Game','Group','Tags','Platform(s)','Multiplayer','Finished?','Started/Played?','100%','Replayable?','Rating (1-10)','Comments'];
+  const head=['Game','Group','Tags','Platform(s)','Multiplayer','Finished?','Started/Played?','100%','Replayability (1-10)','Rating (1-10)','Comments'];
   const lines=[head.map(csvCell).join(',')];
   games.forEach(g=>{ lines.push([g.title, g.group, (g.tags||[]).join('; '), platsOf(g).join('; '), (g.mp==='only'?'Multiplayer only':(g.mp==='story'?'Multiplayer + Story':'')), g.finished, g.started, g.done100, g.replayable, g.rating, g.comments].map(csvCell).join(',')); });
   download('games.csv', lines.join('\r\n'), 'text/csv');
@@ -1056,6 +1158,7 @@ function steamPreview(list){
   return {match:match, nw:nw};
 }
 function steamMerge(list){
+  const want=steamPlatOn()?['PC','Steam']:['PC'];
   const byNorm=new Map(); games.forEach(g=>{ if(!byNorm.has(normTitle(g.title))) byNorm.set(normTitle(g.title), g); });
   const res={matched:0, added:0, playedSince:0};
   list.forEach(s=>{
@@ -1064,7 +1167,8 @@ function steamMerge(list){
     if(ex){
       res.matched++;
       if(!ex.appid && s.appid) ex.appid=s.appid;   // gives the game its Steam cover art
-      if(platsOf(ex).indexOf('PC')<0) ex.platforms=rankPlats(platsOf(ex).concat(['PC']));
+      const add=want.filter(p=>platsOf(ex).indexOf(p)<0);
+      if(add.length) ex.platforms=rankPlats(platsOf(ex).concat(add));
       if(ex.mp!=='only' && sp && upgradable(ex.started)) ex.started='Yes';
       // keep the previous reading so "played 3h since last sync" is answerable
       if(typeof s.hours==='number'){
@@ -1073,7 +1177,7 @@ function steamMerge(list){
         if(ex.hours>(ex.prevHours==null?-1:ex.prevHours)) res.playedSince++;
       }
     } else {
-      const ng={ id:uid(), title:s.title, platforms:['PC'], group:'', ord:0, tags:[], appid:(s.appid||null), img:'', hours:(typeof s.hours==='number'?s.hours:null), prevHours:null, lastSync:(typeof s.hours==='number'?todayISO():''), mp:'', finished:'', started:sp?'Yes':'', done100:'', replayable:'', rating:null, comments:'' };
+      const ng={ id:uid(), title:s.title, platforms:rankPlats(want.slice()), group:'', ord:0, tags:[], appid:(s.appid||null), img:'', hours:(typeof s.hours==='number'?s.hours:null), prevHours:null, lastSync:(typeof s.hours==='number'?todayISO():''), mp:'', finished:'', started:sp?'Yes':'', done100:'', replayable:'', rating:null, comments:'' };
       games.push(ng); byNorm.set(normTitle(ng.title), ng);
       res.added++;
     }
@@ -1087,6 +1191,7 @@ function openSteamModal(mode){
   f('stHdr').textContent = mode==='url' ? 'Import from Steam' : 'Paste from Steam';
   const ac=autoCfg();
   f('stAuto').checked=!!ac;
+  f('stPlat').checked=steamPlatOn();
   if(ac && ac.profile && !f('stProfile').value) f('stProfile').value=ac.profile;
   f('stUrlView').style.display = mode==='url'?'':'none';
   f('stPasteView').style.display = mode==='paste'?'':'none';
@@ -1135,6 +1240,13 @@ async function steamGo(){
    Remembers the profile and re-syncs at most once a day when the app opens, so
    playtime stays current without any background process. Silent on failure —
    a missed sync must never block getting to your library. */
+/* Steam games are PC games, but people filter by the store they live in, and
+   tagging a 200-game library by hand is not realistic - so the import can add
+   a "Steam" platform alongside PC. On by default; the choice is remembered so
+   the daily auto-sync behaves the same way as a manual import. */
+const STPLAT_KEY=LS_KEY+'.steamPlatform';
+function steamPlatOn(){ try{ return localStorage.getItem(STPLAT_KEY)!=='0'; }catch(e){ return true; } }
+function setSteamPlatOn(on){ try{ localStorage.setItem(STPLAT_KEY, on?'1':'0'); }catch(e){} }
 const AUTO_KEY=LS_KEY+'.autoSync';
 function autoCfg(){ try{ return JSON.parse(localStorage.getItem(AUTO_KEY)||'null')||null; }catch(e){ return null; } }
 function setAutoCfg(c){ try{ c?localStorage.setItem(AUTO_KEY,JSON.stringify(c)):localStorage.removeItem(AUTO_KEY); }catch(e){} }
@@ -1356,18 +1468,13 @@ function onCellDblClick(e){
   startCellEdit(td,g,field);
 }
 function startCellEdit(td,g,field){
-  const type=(field==='rating')?'num':((field==='done100')?'pct':((field==='replayable')?'yn':'text'));
+  const type=(field==='rating'||field==='replayable')?'num':((field==='done100')?'pct':'text');
   const cur=(type==='num')?((g[field]===0||g[field])?String(g[field]):''):(g[field]||'');
   let el;
   if(type==='pct'){
     el=document.createElement('select');
     [['','—'],['Want','Want to 100%'],['Yes','100% complete']].forEach(p=>{ const o=document.createElement('option'); o.value=p[0]; o.textContent=p[1]; el.appendChild(o); });
     el.value=(cur==='Yes'||cur==='Want')?cur:'';
-  } else if(type==='yn'){
-    el=document.createElement('select');
-    [['','—'],['Yes','Yes'],['No','No'],['N/A','N/A']].forEach(p=>{ const o=document.createElement('option'); o.value=p[0]; o.textContent=p[1]; el.appendChild(o); });
-    if(cur && ['Yes','No','N/A'].indexOf(cur)<0){ const o=document.createElement('option'); o.value=cur; o.textContent=cur; el.appendChild(o); }
-    el.value=cur||'';
   } else {
     el=document.createElement('input');
     el.type=(type==='num')?'number':'text';
@@ -1390,7 +1497,6 @@ function startCellEdit(td,g,field){
   const cancel=()=>{ if(done) return; done=true; render(); };
   el.addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ ev.preventDefault(); commit(); } else if(ev.key==='Escape'){ ev.preventDefault(); cancel(); } });
   el.addEventListener('blur',commit);
-  if(type==='yn') el.addEventListener('change',commit);
 }
 
 let dragId=null, dragGrp=null;
@@ -1575,6 +1681,7 @@ function onMainClick(e){
     if(act==='tog') toggleField(btn.dataset.id, btn.dataset.field);
     else if(act==='edit') openModal(btn.dataset.id);
     else if(act==='del') del(btn.dataset.id);
+    else if(act==='fav') toggleFav(btn.dataset.id);
     else if(act==='getcovers') openCoverModal();
     else if(act==='noart-toggle'){ filters.noart=!filters.noart; render(); }
     else if(act==='coverbar-x'){
@@ -1637,6 +1744,7 @@ function bind(){
     const b=e.target.closest('.seg button'); if(!b || b.disabled) return;
     const seg=b.parentElement;
     segSet(seg.id, seg.dataset.val===b.dataset.v ? '' : b.dataset.v);
+    if(seg.id==='mStarted') updatePlayedUI();
   });
   f('cvCancel').addEventListener('click',closeCoverModal);
   f('cpCancel').addEventListener('click',closeCoverPicker);
@@ -1683,6 +1791,9 @@ function bind(){
       setAutoCfg({profile:p, last:''});
     } else setAutoCfg(null);
   });
+  buildScales();
+  ['mRating','mReplay'].forEach(id=>f(id).addEventListener('input',()=>{ paintSlider(id); updatePlayedUI(); }));
+  f('stPlat').addEventListener('change',e=>setSteamPlatOn(e.target.checked));
   document.getElementById('steamModal').addEventListener('click',e=>{ if(backdropClick(e,'steamModal')) closeSteamModal(); });
   f('importFile').addEventListener('change',importJSON);
   f('main').addEventListener('click',onMainClick);
