@@ -3,6 +3,26 @@
 All notable changes to Backlog Catalog are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.24.0] - 2026-08-27
+### Added
+- The missing-cover-art banner can now filter the view down to just the
+  games without art (Show them / Show all, in both grid and list), and can
+  be dismissed with an X - it stays quiet until more games are missing
+  than when it was dismissed. Cover tools remain in Settings either way.
+
+### Fixed
+- Dialogs no longer close when a text-selection drag is released outside
+  them. A click's target is the common ancestor of the mouse-down and
+  mouse-up, so releasing a selection over the backdrop counted as clicking
+  it; a backdrop click now closes a dialog only if the press started there
+  too. Applied to all nine dialogs.
+- Clicking empty space in the edit dialog no longer edits the game. A
+  label forwards clicks to its first labelable descendant, and buttons
+  qualify - so clicking the word "Tags", a hint, or the padding removed the
+  first tag, toggled the first platform, or set Finished to Yes. The
+  forwarding is now cancelled when the label's control is a button, while
+  labels wrapping an input or select still focus it as normal.
+
 ## [1.23.0] - 2026-08-21
 ### Changed
 - A Settings area lives bottom-left in the sidebar (the desktop-app
