@@ -3,6 +3,15 @@
 All notable changes to Backlog Catalog are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.23.0] - 2026-08-21
+### Changed
+- A Settings area lives bottom-left in the sidebar (the desktop-app
+  pattern): theme, Import, both exports, and cover art management moved
+  there. The ... toolbar menu is gone; + Create group returns to the
+  toolbar.
+- Grid view shows a small banner when games are missing cover art, with a
+  Find covers button right where the gaps are visible.
+
 ## [1.22.0] - 2026-08-21
 ### Changed
 - De-clunking pass, from reviewer feedback that the app felt busy:

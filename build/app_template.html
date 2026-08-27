@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Backlog Catalog</title>
-<meta name="app-version" content="1.22.0">
+<meta name="app-version" content="1.23.0">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0f1420">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%236366f1'/><text x='32' y='43' font-size='28' text-anchor='middle' fill='white' font-family='Segoe UI,Arial,sans-serif' font-weight='700'>BC</text></svg>">
@@ -43,7 +43,9 @@ body{margin:0;font-family:system-ui,'Segoe UI',Roboto,sans-serif;background:var(
 .nav-sub{display:flex;flex-direction:column;gap:2px}
 .nav-item.sub{padding-left:32px;font-size:13px}
 .side-theme{margin-top:auto;padding:12px 16px 4px}
-.side-theme select{width:100%;font-size:12px;padding:5px 8px}
+.setbtn{width:100%;text-align:left;font-size:13px}
+.coverbar{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:9px 14px;margin:4px 0 12px;font-size:13px;color:var(--muted)}
+.coverbar .btn{margin-left:auto;padding:6px 12px}
 .side-foot{padding:12px 16px 14px;color:var(--muted);font-size:11px;border-top:1px solid var(--line)}
 .content{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column}
 .topbar{flex-shrink:0;display:flex;align-items:center;gap:12px;padding:16px 22px 2px}
@@ -309,7 +311,7 @@ td[data-f],.chk{touch-action:manipulation}
       </div>
       <button class="nav-item" data-view="stats">Stats</button>
     </nav>
-    <div class="side-theme"><select id="themeSel" title="Theme"></select></div>
+    <div class="side-theme"><button id="settingsBtn" class="btn setbtn">&#9881; Settings</button></div>
     <div class="side-foot" id="sideFoot"></div>
   </aside>
 
@@ -326,17 +328,7 @@ td[data-f],.chk{touch-action:manipulation}
       <button id="viewToggle" class="btn" title="Switch between list and cover art">&#9638; Grid</button>
       <button id="pickBtn" class="btn" title="Pick a game for me">&#127922; Pick for me</button>
       <button id="addBtn" class="btn primary">+ Add game</button>
-      <div class="menuwrap">
-        <button id="moreBtn" class="btn" title="More actions" aria-haspopup="true">&#8943;</button>
-        <div id="moreMenu" class="ctx" style="display:none">
-          <button data-more="group">+ Create group</button>
-          <button data-more="covers">Get cover art&#8230;</button>
-          <div class="sep"></div>
-          <button data-more="import">Import&#8230;</button>
-          <button data-more="json">Export backup (JSON)</button>
-          <button data-more="csv">Export spreadsheet (CSV)</button>
-        </div>
-      </div>
+      <button id="createGroupBtn" class="btn">+ Create group</button>
     </div>
     <div id="filterBar" class="filterbar" style="display:none">
       <label>Platform<select id="platform"></select></label>
@@ -470,6 +462,23 @@ td[data-f],.chk{touch-action:manipulation}
   <button data-ctx="del" class="danger">Delete game</button>
 </div>
 
+<div id="settingsModal" class="modal">
+  <div class="dialog" style="max-width:460px">
+    <h2>&#9881; Settings</h2>
+    <label class="hint" style="display:block;margin-top:4px">Theme</label>
+    <select id="themeSel" style="width:100%;margin-top:5px"></select>
+    <label class="hint" style="display:block;margin-top:16px">Your data</label>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">
+      <button id="setImport" class="btn" style="text-align:left"><b>Import&#8230;</b><br><span class="hint">From Steam, a paste, or a backup file</span></button>
+      <button id="setJson" class="btn" style="text-align:left"><b>Export backup (JSON)</b><br><span class="hint">Your whole library &#8212; keep one somewhere safe</span></button>
+      <button id="setCsv" class="btn" style="text-align:left"><b>Export spreadsheet (CSV)</b><br><span class="hint">For Excel</span></button>
+    </div>
+    <label class="hint" style="display:block;margin-top:16px">Cover art</label>
+    <button id="setCovers" class="btn" style="text-align:left;margin-top:6px;width:100%"><b>Manage cover art&#8230;</b><br><span class="hint">Look up missing covers or clear them</span></button>
+    <div class="dlg-actions"><button id="setClose" class="btn">Close</button></div>
+  </div>
+</div>
+
 <div id="coverPickModal" class="modal">
   <div class="dialog" style="max-width:620px">
     <h2 id="cpTitle">Choose a cover</h2>
@@ -498,7 +507,7 @@ td[data-f],.chk{touch-action:manipulation}
 'use strict';
 const SEED = [/*__SEED__*/];
 const LS_KEY = 'gamesLibrary.v1';
-const APP_VERSION = '1.22.0';
+const APP_VERSION = '1.23.0';
 const BK_KEY = LS_KEY + '.lastBackup';
 const DEFAULT_TAGS = ['RPG','FPS','RTS','MMORPG','Platformer','Adventure','Strategy','Racing','Fighting','Puzzle','Horror','Survival','Co-op'];
 const THEME_KEY = LS_KEY + '.theme';
@@ -727,7 +736,10 @@ function gridHtml(list){
   const groups={}, order=[], loose=[];
   list.forEach(g=>{ const k=(g.group||'').trim(); if(k){ if(!groups[k]){groups[k]=[];order.push(k);} groups[k].push(g); } else loose.push(g); });
   const tiles=order.sort((a,b)=>a.localeCompare(b)).map(k=>groups[k].length>1?folderTile(k,groups[k]):gridCard(groups[k][0]));
-  return '<div class="grid-wall">'+tiles.join('')+loose.map(gridCard).join('')+'</div>';
+  // the wall of art is exactly where missing covers are noticeable - offer the fix here
+  const missing=games.filter(g=>!coverUrl(g)).length;
+  const banner=missing?'<div class="coverbar">&#128444; '+missing+' game'+(missing===1?'':'s')+' without cover art <button class="btn" data-act="getcovers">Find covers</button></div>':'';
+  return banner+'<div class="grid-wall">'+tiles.join('')+loose.map(gridCard).join('')+'</div>';
 }
 function renderTable(list){
   if(viewMode==='grid') return gridHtml(list);
@@ -1533,6 +1545,7 @@ function onMainClick(e){
     if(act==='tog') toggleField(btn.dataset.id, btn.dataset.field);
     else if(act==='edit') openModal(btn.dataset.id);
     else if(act==='del') del(btn.dataset.id);
+    else if(act==='getcovers') openCoverModal();
     else if(act==='up') moveInGroup(btn.dataset.id,-1);
     else if(act==='down') moveInGroup(btn.dataset.id,1);
     return;
@@ -1562,20 +1575,15 @@ function bind(){
     f('platform').value='all'; f('sort').value='group';
     render(); f('filterBar').style.display='none'; f('filterBtn').classList.remove('on');
   });
-  f('moreBtn').addEventListener('click',e=>{
-    e.stopPropagation();
-    const m=f('moreMenu'); m.style.display=(m.style.display==='none')?'block':'none';
-  });
-  f('moreMenu').addEventListener('click',e=>{
-    const b=e.target.closest('[data-more]'); if(!b) return;
-    f('moreMenu').style.display='none';
-    if(b.dataset.more==='group') openGroupModal();
-    else if(b.dataset.more==='covers') openCoverModal();
-    else if(b.dataset.more==='import') document.getElementById('importModal').classList.add('show');
-    else if(b.dataset.more==='json') exportJSON();
-    else if(b.dataset.more==='csv') exportCSV();
-  });
-  document.addEventListener('click',e=>{ if(!e.target.closest('.menuwrap')) f('moreMenu').style.display='none'; });
+  f('createGroupBtn').addEventListener('click',openGroupModal);
+  // settings: theme + data + covers live bottom-left, like every desktop app
+  f('settingsBtn').addEventListener('click',()=>document.getElementById('settingsModal').classList.add('show'));
+  f('setClose').addEventListener('click',()=>document.getElementById('settingsModal').classList.remove('show'));
+  document.getElementById('settingsModal').addEventListener('click',e=>{ if(e.target.id==='settingsModal') e.target.classList.remove('show'); });
+  f('setImport').addEventListener('click',()=>{ document.getElementById('settingsModal').classList.remove('show'); document.getElementById('importModal').classList.add('show'); });
+  f('setJson').addEventListener('click',exportJSON);
+  f('setCsv').addEventListener('click',exportCSV);
+  f('setCovers').addEventListener('click',()=>{ document.getElementById('settingsModal').classList.remove('show'); openCoverModal(); });
   // segmented Yes/No/N-A controls: tap to set, tap the same one to clear
   document.getElementById('modal').addEventListener('click',e=>{
     const b=e.target.closest('.seg button'); if(!b || b.disabled) return;
@@ -1679,7 +1687,7 @@ function bind(){
   f('tgColors').addEventListener('click',e=>{ const b=e.target.closest('[data-gc]'); if(!b||!tgGroup) return; const c=b.dataset.gc; if(c) groupColors[tgGroup]=c; else delete groupColors[tgGroup]; saveGroupColors(); renderTagGroup(); render(); });
   f('themeSel').addEventListener('change',e=>applyTheme(e.target.value));
   document.getElementById('tagGroupModal').addEventListener('click',e=>{ if(e.target.id==='tagGroupModal') closeTagGroupModal(); });
-  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeModal(); closeGroupModal(); closeTagGroupModal(); closeSteamModal(); closePickModal(); closeCtx(); closeCoverModal(); closeCoverPicker(); document.getElementById('importModal').classList.remove('show'); } });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeModal(); closeGroupModal(); closeTagGroupModal(); closeSteamModal(); closePickModal(); closeCtx(); closeCoverModal(); closeCoverPicker(); document.getElementById('settingsModal').classList.remove('show'); document.getElementById('importModal').classList.remove('show'); } });
   if(TOUCH){ const ft=document.querySelector('footer'); if(ft) ft.innerHTML='Tip: <b>tap</b> a cell to edit &#8226; auto-saves here &#8226; <b>Export JSON</b> to back up &#8226; v'+APP_VERSION; }
 }
 (function(){ const sel=f('themeSel'); if(sel){ sel.innerHTML=THEMES.map(t=>'<option>'+t+'</option>').join(''); let tv='Midnight'; try{ tv=localStorage.getItem(THEME_KEY)||'Midnight'; }catch(e){} if(THEMES.indexOf(tv)<0) tv='Midnight'; sel.value=tv; applyTheme(tv); } })();

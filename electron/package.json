@@ -1,7 +1,7 @@
 {
   "name": "backlog-catalog",
   "private": true,
-  "version": "1.22.0",
+  "version": "1.23.0",
   "description": "Electron desktop wrapper for the Backlog Catalog single-file web app",
   "main": "main.js",
   "scripts": {
